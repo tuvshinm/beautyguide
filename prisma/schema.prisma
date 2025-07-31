@@ -1,16 +1,94 @@
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 model User {
-  id        Int     @id @default(autoincrement())
-  name     String
-  email   String?
-  createdAt DateTime @default(now())
+  id              String    @id @default(uuid())
+  facebookId      String    @unique
+  email           String?   @unique
+  name            String?
+  profilePicture  String?
+  createdAt       DateTime  @default(now())
+  lastLogin       DateTime  @updatedAt
+  reviews         Review[]
+  sessions        Session[]
+}
+model Session {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+
+  @@index([userId])
+}
+model Product {
+  id           String     @id @default(uuid())
+  name         String
+  description  String?
+  imageUrl     String?
+  createdAt    DateTime   @default(now())
+
+  category     Category   @relation(fields: [categoryId], references: [id])
+  categoryId   String
+
+  tags         ProductTag[]
+  reviews      Review[]
+
+  @@index([name])
+}
+
+model Category {
+  id        String     @id @default(uuid())
+  name      String     @unique
+
+  categoryGroup     CategoryGroup   @relation(fields: [categoryGroupId], references: [id])
+  categoryGroupId   String
+
+  products  Product[]
+}
+enum Affiliation {
+  PRODUCT
+  SERVICE
+}
+model CategoryGroup {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  affil     Affiliation
+  categories  Category[]
+}
+model Tag {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  products  ProductTag[]
+}
+
+model ProductTag {
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId     String
+
+  @@id([productId, tagId])
+}
+model Review {
+  id         String    @id @default(uuid())
+  rating     Int       // 1–5 stars
+  comment    String?
+  createdAt  DateTime  @default(now())
+
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId  String
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+
+  @@index([productId])
+  @@index([userId])
 }
