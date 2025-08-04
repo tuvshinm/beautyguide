@@ -43,6 +43,21 @@ model Product {
   @@index([name])
 }
 
+model Service {
+  id           String     @id @default(uuid())
+  name         String
+  description  String?
+  imageUrl     String?
+  createdAt    DateTime   @default(now())
+
+  category     Category   @relation(fields: [categoryId], references: [id])
+  categoryId   String
+
+  reviews      Review[]
+
+  @@index([name])
+}
+
 model Category {
   id        String     @id @default(uuid())
   name      String     @unique
@@ -51,6 +66,7 @@ model Category {
   categoryGroupId   String
 
   products  Product[]
+  services  Service[]
 }
 enum Affiliation {
   PRODUCT
@@ -58,10 +74,11 @@ enum Affiliation {
 }
 model CategoryGroup {
   id        String     @id @default(uuid())
-  name      String     @unique
+  name      String    
   affil     Affiliation
   categories  Category[]
 }
+
 model Tag {
   id        String     @id @default(uuid())
   name      String     @unique
@@ -83,12 +100,16 @@ model Review {
   comment    String?
   createdAt  DateTime  @default(now())
 
-  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId  String
+  product    Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId  String?
+
+  service    Service?  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  serviceId  String?
 
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId     String
 
   @@index([productId])
+  @@index([serviceId])
   @@index([userId])
 }

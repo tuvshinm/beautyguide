@@ -1,5 +1,6 @@
 import { Category, Product } from "@prisma/client";
 import { ColumnDef } from "@tanstack/react-table";
+import { CategoryGroup } from "@prisma/client";
 
 export const productColumns: ColumnDef<Product>[] = [
   {
@@ -51,5 +52,32 @@ export const categoryColumns: ColumnDef<Category>[] = [
     accessorKey: "categoryGroupId",
     header: "Category Group ID",
     cell: ({ row }) => row.original.categoryGroupId,
+  },
+];
+type CategoryGroupWithCount = CategoryGroup & {
+  _count?: {
+    categories: number;
+  };
+};
+
+export const categoryGroupColumns: ColumnDef<CategoryGroupWithCount>[] = [
+  {
+    accessorKey: "name",
+    header: "Name",
+    cell: ({ row }) => row.original.name,
+  },
+  {
+    accessorKey: "id",
+    header: "ID",
+    cell: ({ row }) => row.original.id,
+  },
+  {
+    accessorKey: "affil",
+    header: "Affiliation",
+    cell: ({ row }) => row.original.affil,
+  },
+  {
+    header: "Categories Count",
+    cell: ({ row }) => row.original._count?.categories ?? "—",
   },
 ];

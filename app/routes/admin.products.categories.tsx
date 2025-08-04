@@ -1,16 +1,17 @@
 import { useLoaderData } from "@remix-run/react";
-import { EntityDataTable } from "~/components/data-table";
+import { EntityDataTableMulti } from "~/components/data-table";
 import { db } from "~/utils/db.server";
-import { categoryColumns } from "~/components/columns";
+import { categoryColumns, categoryGroupColumns } from "~/components/columns";
 import { ActionFunctionArgs } from "@remix-run/node";
-
+import {
+  categoryDrawerFields,
+  categoryGroupDrawerFields,
+} from "~/components/drawers";
 export const loader = async () => {
-  // Replace with your actual DB call
   const categories = await db.category.findMany();
   const categoryGroups = await db.categoryGroup.findMany();
   return { categories, categoryGroups };
 };
-
 export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const newCategory = {
@@ -36,26 +37,45 @@ export default function ProductCategories() {
     // Optionally reload or revalidate here
   }
 
+  async function handleCreateCategoryGroup(
+    newCategoryGroup: Record<string, any>
+  ) {
+    const formData = new FormData();
+    Object.entries(newCategoryGroup).forEach(([key, value]) => {
+      formData.append(key, value ?? "");
+    });
+    await fetch("/admin/products/categories/group", {
+      method: "POST",
+      body: formData,
+    });
+    // Optionally reload or revalidate here
+  }
+
   return (
-    <EntityDataTable
-      data={categories}
-      tabs={[{ value: "main", label: "Categories" }]}
-      tabColumns={{
-        main: categoryColumns,
-      }}
-      drawerFields={[
-        { key: "name", label: "Name", type: "text" },
+    <EntityDataTableMulti
+      datasets={[
         {
-          key: "categoryGroupId",
+          key: "category",
+          label: "Category",
+          data: categories,
+          columns: categoryColumns,
+          drawerFields: categoryDrawerFields,
+          buttonLabel: "New Category",
+          onCreate: handleCreate,
+        },
+        {
+          key: "categoryGroup",
           label: "Category Group",
-          type: "select",
-          options: categoryGroups.map((group: any) => ({
-            value: group.id,
-            label: group.name,
+          data: categoryGroups.map((group: any) => ({
+            ...group,
+            categoryGroupId: group.id,
           })),
+          columns: categoryGroupColumns,
+          drawerFields: categoryGroupDrawerFields,
+          buttonLabel: "New Category Group",
+          onCreate: handleCreateCategoryGroup,
         },
       ]}
-      onCreate={handleCreate}
     />
   );
 }
