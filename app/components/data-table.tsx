@@ -1,4 +1,3 @@
-import * as React from "react";
 import {
   closestCenter,
   DndContext,
@@ -17,20 +16,15 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+// Added CSS import for dnd-kit transform styles
+import { CSS } from "@dnd-kit/utilities";
 import {
+  FaChevronUp, // Added for sorting indicator
   FaChevronDown,
-  FaChevronLeft,
-  FaChevronRight,
-  FaAngleDoubleLeft,
-  FaAngleDoubleRight,
-  FaCheckCircle,
-  FaEllipsisV,
   FaGripVertical,
-  FaSpinner,
   FaPlus,
-  FaChartLine,
+  FaTrash,
 } from "react-icons/fa";
-import { MdViewColumn } from "react-icons/md";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -59,52 +53,114 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import {
+  CSSProperties,
+  HTMLProps,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
+function IndeterminateCheckbox({
+  indeterminate,
+  className = "",
+  ...rest
+}: { indeterminate?: boolean } & HTMLProps<HTMLInputElement>) {
+  const ref = useRef<HTMLInputElement>(null!);
+
+  useEffect(() => {
+    if (typeof indeterminate === "boolean") {
+      ref.current.indeterminate = indeterminate;
+    }
+  }, [ref, indeterminate]);
+
+  return (
+    <input
+      type="checkbox"
+      ref={ref}
+      className={className + " cursor-pointer"}
+      {...rest}
+    />
+  );
+}
 
 export const productSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().nullable(),
   imageUrl: z.string().nullable(),
-  createdAt: z.string(), // or z.date() if you parse dates
+  createdAt: z.string(),
   categoryId: z.string(),
 });
 
-// DragHandle expects string id
-export function DragHandle({ id }: { id: string }) {
-  const { attributes, listeners } = useSortable({ id });
+// --- START: DragHandle Refactor ---
+// DragHandle is now a simple presentational component.
+// It receives listeners and attributes from the useSortable hook in DraggableRow.
+export function DragHandle({
+  attributes,
+  listeners,
+}: {
+  attributes: ReturnType<typeof useSortable>["attributes"];
+  listeners: ReturnType<typeof useSortable>["listeners"];
+}) {
   return (
     <Button
       {...attributes}
       {...listeners}
       variant="ghost"
       size="icon"
-      className="text-muted-foreground size-7 hover:bg-transparent"
+      className="text-muted-foreground size-7 cursor-grab hover:bg-transparent active:cursor-grabbing"
     >
-      <FaGripVertical className="text-muted-foreground size-3" />
-      <span className="sr-only">Drag to reorder</span>
+      <FaGripVertical className="text-muted-foreground size-3" /> 
+      <span className="sr-only">Drag to reorder</span> 
     </Button>
   );
 }
+// --- END: DragHandle Refactor ---
 
-// DraggableRow for sortable rows
-export function DraggableRow({
-  row,
-}: {
-  row: Row<z.infer<typeof productSchema>>;
-}) {
+// --- START: DraggableRow Refactor ---
+// The useSortable hook is now in the row component, which is the standard practice.
+export function DraggableRow({ row }: { row: Row<any> }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: row.id });
+
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform), // Uses CSS utilities for smooth movement
+    transition,
+    opacity: isDragging ? 0.8 : 1,
+    zIndex: isDragging ? 100 : "auto", // Ensure the dragging row is on top
+    position: "relative",
+  };
+
   return (
-    <TableRow key={row.id} data-id={row.id}>
+    <TableRow
+      ref={setNodeRef} // The ref from useSortable must be attached to the row element
+      style={style}
+      key={row.id}
+      data-state={row.getIsSelected() && "selected"}
+    >
       <TableCell>
-        <DragHandle id={row.id} />
+        {/* Listeners are passed down to the handle */}
+        <DragHandle attributes={attributes} listeners={listeners} /> 
       </TableCell>
+
       {row.getVisibleCells().map((cell) => (
         <TableCell key={cell.id}>
-          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          {flexRender(cell.column.columnDef.cell, cell.getContext())} 
         </TableCell>
       ))}
     </TableRow>
   );
 }
+// --- END: DraggableRow Refactor ---
 
 export function EntityDataTable<T extends Record<string, any>>({
   data: initialData,
@@ -114,43 +170,66 @@ export function EntityDataTable<T extends Record<string, any>>({
   drawerFields,
   label,
   onCreate,
+  onDelete,
 }: {
   data: T[];
   tabs: { value: string; label: string; badge?: number }[];
   tabColumns: Record<string, ColumnDef<T>[]>;
   tableLabel?: string;
-  drawerFields: FieldConfig[];
+  drawerFields: FieldConfig<T>[];
   label: string;
   onCreate?: (values: Partial<T>) => void;
+  onDelete?: (ids: string[]) => void;
 }) {
-  const [activeTab, setActiveTab] = React.useState(tableLabel);
-  const [drawerOpen, setDrawerOpen] = React.useState(false);
-
-  const [data, setData] = React.useState(() => initialData);
-  const [rowSelection, setRowSelection] = React.useState({});
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  );
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [pagination, setPagination] = React.useState({
+  const [activeTab, setActiveTab] = useState(tableLabel);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [data, setData] = useState(() => initialData);
+  const [rowSelection, setRowSelection] = useState({});
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
   });
-  const sortableId = React.useId();
+  const sortableId = useId();
   const sensors = useSensors(
     useSensor(MouseSensor, {}),
     useSensor(TouchSensor, {}),
     useSensor(KeyboardSensor, {})
   );
 
-  const dataIds = React.useMemo<UniqueIdentifier[]>(
+  const dataIds = useMemo<UniqueIdentifier[]>(
     () => data?.map((row: any) => row.id) || [],
     [data]
   );
 
-  const columns = tabColumns[activeTab] || [];
+  const columns = useMemo(() => {
+    const selectionColumn: ColumnDef<T> = {
+      id: "select",
+      header: ({ table }) => (
+        <IndeterminateCheckbox
+          className="size-4"
+          checked={table.getIsAllPageRowsSelected()}
+          indeterminate={table.getIsSomePageRowsSelected()}
+          onChange={table.getToggleAllPageRowsSelectedHandler()}
+          aria-label="Select all rows on this page"
+        />
+      ),
+      cell: ({ row }) => (
+        <IndeterminateCheckbox
+          className="size-4"
+          checked={row.getIsSelected()}
+          disabled={!row.getCanSelect()}
+          onChange={row.getToggleSelectedHandler()}
+          aria-label="Select row"
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+      enableSorting: false, // Disable sorting for the checkbox column
+    };
+    return [selectionColumn, ...(tabColumns[activeTab] || [])];
+  }, [activeTab, tabColumns]);
 
   const table = useReactTable({
     data,
@@ -180,11 +259,35 @@ export function EntityDataTable<T extends Record<string, any>>({
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (active && over && active.id !== over.id) {
-      setData((data) => {
-        const oldIndex = dataIds.indexOf(active.id);
-        const newIndex = dataIds.indexOf(over.id);
-        return arrayMove(data, oldIndex, newIndex);
+      setData((currentData) => {
+        const oldIndex = currentData.findIndex((item) => item.id === active.id);
+        const newIndex = currentData.findIndex((item) => item.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return currentData;
+        return arrayMove(currentData, oldIndex, newIndex);
       });
+    }
+  }
+
+  async function handleDelete() {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    const numSelected = selectedRows.length;
+    if (numSelected === 0) return;
+
+    if (
+      window.confirm(
+        `Are you sure you want to delete ${numSelected} ${
+          numSelected === 1 ? "entry" : "entries"
+        }?`
+      )
+    ) {
+      const idsToDelete = selectedRows.map((row) => row.id);
+      if (onDelete) {
+        await onDelete(idsToDelete);
+      }
+      setData((current) =>
+        current.filter((row) => !idsToDelete.includes(row.id))
+      );
+      setRowSelection({});
     }
   }
 
@@ -204,24 +307,39 @@ export function EntityDataTable<T extends Record<string, any>>({
         <TabsList>
           {tabs.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value}>
-              {tab.label}
+              {tab.label} 
               {tab.badge ? (
                 <Badge variant="secondary">{tab.badge}</Badge>
               ) : null}
             </TabsTrigger>
           ))}
         </TabsList>
+
         <div className="flex items-center gap-2">
+          {table.getFilteredSelectedRowModel().rows.length > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDelete}
+              className="flex items-center gap-1"
+            >
+              <FaTrash /> 
+              <span>
+                Delete ({table.getFilteredSelectedRowModel().rows.length})
+              </span>
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="sm"
             onClick={() => setDrawerOpen(true)}
           >
-            <FaPlus />
-            <span className="hidden lg:inline">{label}</span>
+            <FaPlus /> <span className="hidden lg:inline">{label}</span> 
           </Button>
         </div>
       </div>
+
       <TabsContent
         value={activeTab}
         className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
@@ -238,21 +356,39 @@ export function EntityDataTable<T extends Record<string, any>>({
               <TableHeader className="bg-muted sticky top-0 z-10">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
-                    <TableHead key="drag" />
+                    <TableHead key="drag" className="w-8" />
+
                     {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id} colSpan={header.colSpan}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
+                      <TableHead
+                        key={header.id}
+                        colSpan={header.colSpan}
+                        style={{ width: header.getSize() }}
+                      >
+                        {header.isPlaceholder ? null : (
+                          <div
+                            {...{
+                              className: header.column.getCanSort()
+                                ? "flex items-center gap-2 cursor-pointer select-none"
+                                : "",
+                              onClick: header.column.getToggleSortingHandler(),
+                            }}
+                          >
+                            {flexRender(
                               header.column.columnDef.header,
                               header.getContext()
                             )}
+                            {{
+                              asc: <FaChevronUp className="size-3" />,
+                              desc: <FaChevronDown className="size-3" />,
+                            }[header.column.getIsSorted() as string] ?? null}
+                          </div>
+                        )}
                       </TableHead>
                     ))}
                   </TableRow>
                 ))}
               </TableHeader>
-              <TableBody className="**:data-[slot=table-cell]:first:w-8">
+              <TableBody>
                 {table.getRowModel().rows?.length ? (
                   <SortableContext
                     items={dataIds}
@@ -276,6 +412,7 @@ export function EntityDataTable<T extends Record<string, any>>({
             </Table>
           </DndContext>
         </div>
+
         <EntityDrawerViewer
           item={{} as T}
           fields={drawerFields}
@@ -289,14 +426,15 @@ export function EntityDataTable<T extends Record<string, any>>({
   );
 }
 
-type DatasetOption<T> = {
+export type DatasetOption<T extends Record<string, any>> = {
   key: string;
-  label: string; // e.g. "Category", "Category Group"
+  label: string;
   data: T[];
   columns: ColumnDef<T>[];
-  drawerFields: FieldConfig[];
-  buttonLabel: string; // e.g. "New Category", "New Category Group"
+  drawerFields: FieldConfig<T>[] | ((data: T[]) => FieldConfig<T>[]);
+  buttonLabel: string;
   onCreate?: (values: Partial<T>) => void;
+  onDelete?: (ids: string[]) => void;
 };
 
 export function EntityDataTableMulti<T extends Record<string, any>>({
@@ -306,37 +444,33 @@ export function EntityDataTableMulti<T extends Record<string, any>>({
   datasets: DatasetOption<T>[];
   defaultDatasetKey?: string;
 }) {
-  const [selectedDatasetKey, setSelectedDatasetKey] = React.useState(
+  const [selectedDatasetKey, setSelectedDatasetKey] = useState(
     defaultDatasetKey ?? datasets[0]?.key
   );
 
-  const selectedDataset = React.useMemo(
+  const selectedDataset = useMemo(
     () => datasets.find((d) => d.key === selectedDatasetKey) ?? datasets[0],
     [datasets, selectedDatasetKey]
   );
 
-  // All the rest of your state, but scoped to the selected dataset
-  const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const [data, setData] = React.useState(() => selectedDataset.data);
-  const [rowSelection, setRowSelection] = React.useState({});
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  );
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [pagination, setPagination] = React.useState({
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [data, setData] = useState(() => selectedDataset.data);
+  const [rowSelection, setRowSelection] = useState({});
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
   });
-  const sortableId = React.useId();
+  const sortableId = useId();
   const sensors = useSensors(
     useSensor(MouseSensor, {}),
     useSensor(TouchSensor, {}),
     useSensor(KeyboardSensor, {})
   );
 
-  React.useEffect(() => {
+  useEffect(() => {
     setData(selectedDataset.data);
     setRowSelection({});
     setColumnVisibility({});
@@ -345,12 +479,37 @@ export function EntityDataTableMulti<T extends Record<string, any>>({
     setPagination({ pageIndex: 0, pageSize: 10 });
   }, [selectedDatasetKey, selectedDataset.data]);
 
-  const dataIds = React.useMemo<UniqueIdentifier[]>(
+  const dataIds = useMemo<UniqueIdentifier[]>(
     () => data?.map((row: any) => row.id) || [],
     [data]
   );
 
-  const columns = selectedDataset.columns;
+  const columns = useMemo(() => {
+    const selectionColumn: ColumnDef<T> = {
+      id: "select",
+      header: ({ table }) => (
+        <IndeterminateCheckbox
+          className="size-4"
+          checked={table.getIsAllPageRowsSelected()}
+          indeterminate={table.getIsSomePageRowsSelected()}
+          onChange={table.getToggleAllPageRowsSelectedHandler()}
+          aria-label="Select all rows on this page"
+        />
+      ),
+      cell: ({ row }) => (
+        <IndeterminateCheckbox
+          className="size-4"
+          checked={row.getIsSelected()}
+          disabled={!row.getCanSelect()}
+          onChange={row.getToggleSelectedHandler()}
+          aria-label="Select row"
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+      enableSorting: false,
+    };
+    return [selectionColumn, ...selectedDataset.columns];
+  }, [selectedDataset.columns]);
 
   const table = useReactTable({
     data,
@@ -380,11 +539,35 @@ export function EntityDataTableMulti<T extends Record<string, any>>({
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (active && over && active.id !== over.id) {
-      setData((data) => {
-        const oldIndex = dataIds.indexOf(active.id);
-        const newIndex = dataIds.indexOf(over.id);
-        return arrayMove(data, oldIndex, newIndex);
+      setData((currentData) => {
+        const oldIndex = currentData.findIndex((item) => item.id === active.id);
+        const newIndex = currentData.findIndex((item) => item.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return currentData;
+        return arrayMove(currentData, oldIndex, newIndex);
       });
+    }
+  }
+
+  async function handleDelete() {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    const numSelected = selectedRows.length;
+    if (numSelected === 0) return;
+
+    if (
+      window.confirm(
+        `Are you sure you want to delete ${numSelected} ${
+          numSelected === 1 ? "entry" : "entries"
+        }?`
+      )
+    ) {
+      const idsToDelete = selectedRows.map((row) => row.id);
+      if (selectedDataset.onDelete) {
+        await selectedDataset.onDelete(idsToDelete);
+      }
+      setData((current) =>
+        current.filter((row) => !idsToDelete.includes(row.id))
+      );
+      setRowSelection({});
     }
   }
 
@@ -393,9 +576,15 @@ export function EntityDataTableMulti<T extends Record<string, any>>({
     setDrawerOpen(false);
   }
 
+  // Resolve the drawerFields property here
+  const resolvedDrawerFields = useMemo(() => {
+    return typeof selectedDataset.drawerFields === "function"
+      ? selectedDataset.drawerFields(data)
+      : selectedDataset.drawerFields;
+  }, [selectedDataset.drawerFields, data]);
+
   return (
     <div className="w-full flex-col justify-start gap-6">
-      {/* Dataset selector */}
       <div className="flex items-center justify-between px-4 lg:px-6 mb-2">
         <div>
           <select
@@ -411,6 +600,19 @@ export function EntityDataTableMulti<T extends Record<string, any>>({
           </select>
         </div>
         <div className="flex items-center gap-2">
+          {table.getFilteredSelectedRowModel().rows.length > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDelete}
+              className="flex items-center gap-1"
+            >
+              <FaTrash />
+              <span>
+                Delete ({table.getFilteredSelectedRowModel().rows.length})
+              </span>
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -436,21 +638,38 @@ export function EntityDataTableMulti<T extends Record<string, any>>({
               <TableHeader className="bg-muted sticky top-0 z-10">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
-                    <TableHead key="drag" />
+                    <TableHead key="drag" className="w-8" />
                     {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id} colSpan={header.colSpan}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
+                      <TableHead
+                        key={header.id}
+                        colSpan={header.colSpan}
+                        style={{ width: header.getSize() }}
+                      >
+                        {header.isPlaceholder ? null : (
+                          <div
+                            {...{
+                              className: header.column.getCanSort()
+                                ? "flex items-center gap-2 cursor-pointer select-none"
+                                : "",
+                              onClick: header.column.getToggleSortingHandler(),
+                            }}
+                          >
+                            {flexRender(
                               header.column.columnDef.header,
                               header.getContext()
                             )}
+                            {{
+                              asc: <FaChevronUp className="size-3" />,
+                              desc: <FaChevronDown className="size-3" />,
+                            }[header.column.getIsSorted() as string] ?? null}
+                          </div>
+                        )}
                       </TableHead>
                     ))}
                   </TableRow>
                 ))}
               </TableHeader>
-              <TableBody className="**:data-[slot=table-cell]:first:w-8">
+              <TableBody>
                 {table.getRowModel().rows?.length ? (
                   <SortableContext
                     items={dataIds}
@@ -476,7 +695,7 @@ export function EntityDataTableMulti<T extends Record<string, any>>({
         </div>
         <EntityDrawerViewer
           item={{} as T}
-          fields={selectedDataset.drawerFields}
+          fields={resolvedDrawerFields} // Now using the resolved array
           triggerLabel={selectedDataset.buttonLabel}
           open={drawerOpen}
           onOpenChange={setDrawerOpen}

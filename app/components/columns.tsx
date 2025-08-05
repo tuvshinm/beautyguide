@@ -54,7 +54,7 @@ export const categoryColumns: ColumnDef<Category>[] = [
     cell: ({ row }) => row.original.categoryGroupId,
   },
 ];
-type CategoryGroupWithCount = CategoryGroup & {
+export type CategoryGroupWithCount = CategoryGroup & {
   _count?: {
     categories: number;
   };

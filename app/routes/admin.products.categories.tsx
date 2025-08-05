@@ -1,15 +1,26 @@
 import { useLoaderData } from "@remix-run/react";
-import { EntityDataTableMulti } from "~/components/data-table";
+import { DatasetOption, EntityDataTableMulti } from "~/components/data-table";
 import { db } from "~/utils/db.server";
-import { categoryColumns, categoryGroupColumns } from "~/components/columns";
+import {
+  categoryColumns,
+  categoryGroupColumns,
+  CategoryGroupWithCount,
+} from "~/components/columns";
 import { ActionFunctionArgs } from "@remix-run/node";
 import {
   categoryDrawerFields,
   categoryGroupDrawerFields,
 } from "~/components/drawers";
+import { Category, CategoryGroup } from "@prisma/client";
 export const loader = async () => {
   const categories = await db.category.findMany();
-  const categoryGroups = await db.categoryGroup.findMany();
+  const categoryGroups = await db.categoryGroup.findMany({
+    include: {
+      _count: {
+        select: { categories: true },
+      },
+    },
+  });
   return { categories, categoryGroups };
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -25,6 +36,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function ProductCategories() {
   const { categories, categoryGroups } = useLoaderData<typeof loader>();
 
+  const categoryDataset: DatasetOption<Category> = {
+    key: "category",
+    label: "Category",
+    data: categories,
+    columns: categoryColumns,
+    drawerFields: categoryDrawerFields(categoryGroups),
+    buttonLabel: "New Category",
+    onCreate: handleCreate,
+  };
+
+  const categoryGroupDataset: DatasetOption<CategoryGroupWithCount> = {
+    key: "categoryGroup",
+    label: "Category Group",
+    data: categoryGroups,
+    columns: categoryGroupColumns,
+    drawerFields: categoryGroupDrawerFields,
+    buttonLabel: "New Category Group",
+    onCreate: handleCreateCategoryGroup,
+  };
   async function handleCreate(newCategory: Record<string, any>) {
     const formData = new FormData();
     Object.entries(newCategory).forEach(([key, value]) => {
@@ -53,29 +83,7 @@ export default function ProductCategories() {
 
   return (
     <EntityDataTableMulti
-      datasets={[
-        {
-          key: "category",
-          label: "Category",
-          data: categories,
-          columns: categoryColumns,
-          drawerFields: categoryDrawerFields,
-          buttonLabel: "New Category",
-          onCreate: handleCreate,
-        },
-        {
-          key: "categoryGroup",
-          label: "Category Group",
-          data: categoryGroups.map((group: any) => ({
-            ...group,
-            categoryGroupId: group.id,
-          })),
-          columns: categoryGroupColumns,
-          drawerFields: categoryGroupDrawerFields,
-          buttonLabel: "New Category Group",
-          onCreate: handleCreateCategoryGroup,
-        },
-      ]}
+      datasets={[categoryDataset, categoryGroupDataset] as any}
     />
   );
 }
