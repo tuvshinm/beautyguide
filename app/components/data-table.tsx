@@ -16,10 +16,9 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-// Added CSS import for dnd-kit transform styles
 import { CSS } from "@dnd-kit/utilities";
 import {
-  FaChevronUp, // Added for sorting indicator
+  FaChevronUp,
   FaChevronDown,
   FaGripVertical,
   FaPlus,
@@ -69,13 +68,11 @@ function IndeterminateCheckbox({
   ...rest
 }: { indeterminate?: boolean } & HTMLProps<HTMLInputElement>) {
   const ref = useRef<HTMLInputElement>(null!);
-
   useEffect(() => {
     if (typeof indeterminate === "boolean") {
       ref.current.indeterminate = indeterminate;
     }
   }, [ref, indeterminate]);
-
   return (
     <input
       type="checkbox"
@@ -95,9 +92,6 @@ export const productSchema = z.object({
   categoryId: z.string(),
 });
 
-// --- START: DragHandle Refactor ---
-// DragHandle is now a simple presentational component.
-// It receives listeners and attributes from the useSortable hook in DraggableRow.
 export function DragHandle({
   attributes,
   listeners,
@@ -113,16 +107,94 @@ export function DragHandle({
       size="icon"
       className="text-muted-foreground size-7 cursor-grab hover:bg-transparent active:cursor-grabbing"
     >
-      <FaGripVertical className="text-muted-foreground size-3" /> 
-      <span className="sr-only">Drag to reorder</span> 
+      <FaGripVertical className="text-muted-foreground size-3" />
+      <span className="sr-only">Drag to reorder</span>
     </Button>
   );
 }
-// --- END: DragHandle Refactor ---
+// Editable Cell component
+function EditableCell({
+  cell,
+  onEdit,
+  dropdownOptions, // New prop for dropdown options
+}: {
+  cell: any;
+  onEdit: (id: string, accessorKey: string, value: any) => void;
+  dropdownOptions?: Record<string, { value: string; label: string }[]>;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [value, setValue] = useState(cell.getValue());
 
-// --- START: DraggableRow Refactor ---
-// The useSortable hook is now in the row component, which is the standard practice.
-export function DraggableRow({ row }: { row: Row<any> }) {
+  const accessorKey = cell.column.columnDef.accessorKey as string;
+  const id = cell.row.original.id;
+
+  const handleBlur = () => {
+    setIsEditing(false);
+    if (value !== cell.getValue()) {
+      onEdit(id, accessorKey, value);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleBlur();
+    }
+  };
+
+  // Check if a dropdown is configured for this accessorKey
+  const options = dropdownOptions?.[accessorKey];
+
+  if (isEditing && options) {
+    return (
+      <select
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleBlur}
+        autoFocus
+        className="w-full h-full p-2 border rounded-md"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  if (isEditing && accessorKey) {
+    return (
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        autoFocus
+        className="w-full h-full p-2 border rounded-md"
+      />
+    );
+  }
+
+  return (
+    <div
+      onClick={() => setIsEditing(true)}
+      className="w-full h-full cursor-pointer p-2"
+    >
+      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+    </div>
+  );
+}
+
+export function DraggableRow<T extends Record<string, any>>({
+  row,
+  onEdit,
+  dropdownOptions, // Pass the new prop here
+}: {
+  row: Row<T>;
+  onEdit: (id: string, accessorKey: string, value: any) => void;
+  dropdownOptions?: Record<string, { value: string; label: string }[]>;
+}) {
   const {
     attributes,
     listeners,
@@ -131,301 +203,35 @@ export function DraggableRow({ row }: { row: Row<any> }) {
     transition,
     isDragging,
   } = useSortable({ id: row.id });
-
   const style: CSSProperties = {
-    transform: CSS.Transform.toString(transform), // Uses CSS utilities for smooth movement
+    transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.8 : 1,
-    zIndex: isDragging ? 100 : "auto", // Ensure the dragging row is on top
+    zIndex: isDragging ? 100 : "auto",
     position: "relative",
   };
-
   return (
     <TableRow
-      ref={setNodeRef} // The ref from useSortable must be attached to the row element
+      ref={setNodeRef}
       style={style}
       key={row.id}
       data-state={row.getIsSelected() && "selected"}
     >
       <TableCell>
-        {/* Listeners are passed down to the handle */}
-        <DragHandle attributes={attributes} listeners={listeners} /> 
+        <DragHandle attributes={attributes} listeners={listeners} />
       </TableCell>
-
       {row.getVisibleCells().map((cell) => (
         <TableCell key={cell.id}>
-          {flexRender(cell.column.columnDef.cell, cell.getContext())} 
+          <EditableCell
+            cell={cell}
+            onEdit={onEdit}
+            dropdownOptions={dropdownOptions}
+          />
         </TableCell>
       ))}
     </TableRow>
   );
 }
-// --- END: DraggableRow Refactor ---
-
-export function EntityDataTable<T extends Record<string, any>>({
-  data: initialData,
-  tabs = [],
-  tabColumns = {},
-  tableLabel = tabs[0]?.value ?? "default",
-  drawerFields,
-  label,
-  onCreate,
-  onDelete,
-}: {
-  data: T[];
-  tabs: { value: string; label: string; badge?: number }[];
-  tabColumns: Record<string, ColumnDef<T>[]>;
-  tableLabel?: string;
-  drawerFields: FieldConfig<T>[];
-  label: string;
-  onCreate?: (values: Partial<T>) => void;
-  onDelete?: (ids: string[]) => void;
-}) {
-  const [activeTab, setActiveTab] = useState(tableLabel);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [data, setData] = useState(() => initialData);
-  const [rowSelection, setRowSelection] = useState({});
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 10,
-  });
-  const sortableId = useId();
-  const sensors = useSensors(
-    useSensor(MouseSensor, {}),
-    useSensor(TouchSensor, {}),
-    useSensor(KeyboardSensor, {})
-  );
-
-  const dataIds = useMemo<UniqueIdentifier[]>(
-    () => data?.map((row: any) => row.id) || [],
-    [data]
-  );
-
-  const columns = useMemo(() => {
-    const selectionColumn: ColumnDef<T> = {
-      id: "select",
-      header: ({ table }) => (
-        <IndeterminateCheckbox
-          className="size-4"
-          checked={table.getIsAllPageRowsSelected()}
-          indeterminate={table.getIsSomePageRowsSelected()}
-          onChange={table.getToggleAllPageRowsSelectedHandler()}
-          aria-label="Select all rows on this page"
-        />
-      ),
-      cell: ({ row }) => (
-        <IndeterminateCheckbox
-          className="size-4"
-          checked={row.getIsSelected()}
-          disabled={!row.getCanSelect()}
-          onChange={row.getToggleSelectedHandler()}
-          aria-label="Select row"
-          onClick={(e) => e.stopPropagation()}
-        />
-      ),
-      enableSorting: false, // Disable sorting for the checkbox column
-    };
-    return [selectionColumn, ...(tabColumns[activeTab] || [])];
-  }, [activeTab, tabColumns]);
-
-  const table = useReactTable({
-    data,
-    columns,
-    state: {
-      sorting,
-      columnVisibility,
-      rowSelection,
-      columnFilters,
-      pagination,
-    },
-    getRowId: (row: any) => row.id,
-    enableRowSelection: true,
-    onRowSelectionChange: setRowSelection,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onColumnVisibilityChange: setColumnVisibility,
-    onPaginationChange: setPagination,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
-  });
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (active && over && active.id !== over.id) {
-      setData((currentData) => {
-        const oldIndex = currentData.findIndex((item) => item.id === active.id);
-        const newIndex = currentData.findIndex((item) => item.id === over.id);
-        if (oldIndex === -1 || newIndex === -1) return currentData;
-        return arrayMove(currentData, oldIndex, newIndex);
-      });
-    }
-  }
-
-  async function handleDelete() {
-    const selectedRows = table.getFilteredSelectedRowModel().rows;
-    const numSelected = selectedRows.length;
-    if (numSelected === 0) return;
-
-    if (
-      window.confirm(
-        `Are you sure you want to delete ${numSelected} ${
-          numSelected === 1 ? "entry" : "entries"
-        }?`
-      )
-    ) {
-      const idsToDelete = selectedRows.map((row) => row.id);
-      if (onDelete) {
-        await onDelete(idsToDelete);
-      }
-      setData((current) =>
-        current.filter((row) => !idsToDelete.includes(row.id))
-      );
-      setRowSelection({});
-    }
-  }
-
-  function handleCreate(values: Partial<T>) {
-    if (onCreate) onCreate(values);
-    setDrawerOpen(false);
-  }
-
-  return (
-    <Tabs
-      defaultValue={activeTab}
-      value={activeTab}
-      onValueChange={setActiveTab}
-      className="w-full flex-col justify-start gap-6"
-    >
-      <div className="flex items-center justify-between px-4 lg:px-6">
-        <TabsList>
-          {tabs.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value}>
-              {tab.label} 
-              {tab.badge ? (
-                <Badge variant="secondary">{tab.badge}</Badge>
-              ) : null}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <div className="flex items-center gap-2">
-          {table.getFilteredSelectedRowModel().rows.length > 0 && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDelete}
-              className="flex items-center gap-1"
-            >
-              <FaTrash /> 
-              <span>
-                Delete ({table.getFilteredSelectedRowModel().rows.length})
-              </span>
-            </Button>
-          )}
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setDrawerOpen(true)}
-          >
-            <FaPlus /> <span className="hidden lg:inline">{label}</span> 
-          </Button>
-        </div>
-      </div>
-
-      <TabsContent
-        value={activeTab}
-        className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
-      >
-        <div className="overflow-hidden rounded-lg border">
-          <DndContext
-            collisionDetection={closestCenter}
-            modifiers={[restrictToVerticalAxis]}
-            onDragEnd={handleDragEnd}
-            sensors={sensors}
-            id={sortableId}
-          >
-            <Table>
-              <TableHeader className="bg-muted sticky top-0 z-10">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    <TableHead key="drag" className="w-8" />
-
-                    {headerGroup.headers.map((header) => (
-                      <TableHead
-                        key={header.id}
-                        colSpan={header.colSpan}
-                        style={{ width: header.getSize() }}
-                      >
-                        {header.isPlaceholder ? null : (
-                          <div
-                            {...{
-                              className: header.column.getCanSort()
-                                ? "flex items-center gap-2 cursor-pointer select-none"
-                                : "",
-                              onClick: header.column.getToggleSortingHandler(),
-                            }}
-                          >
-                            {flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                            {{
-                              asc: <FaChevronUp className="size-3" />,
-                              desc: <FaChevronDown className="size-3" />,
-                            }[header.column.getIsSorted() as string] ?? null}
-                          </div>
-                        )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  <SortableContext
-                    items={dataIds}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {table.getRowModel().rows.map((row) => (
-                      <DraggableRow key={row.id} row={row} />
-                    ))}
-                  </SortableContext>
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length + 1}
-                      className="h-24 text-center"
-                    >
-                      No results.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </DndContext>
-        </div>
-
-        <EntityDrawerViewer
-          item={{} as T}
-          fields={drawerFields}
-          triggerLabel={label}
-          open={drawerOpen}
-          onOpenChange={setDrawerOpen}
-          onSubmit={handleCreate}
-        />
-      </TabsContent>
-    </Tabs>
-  );
-}
-
 export type DatasetOption<T extends Record<string, any>> = {
   key: string;
   label: string;
@@ -433,11 +239,13 @@ export type DatasetOption<T extends Record<string, any>> = {
   columns: ColumnDef<T>[];
   drawerFields: FieldConfig<T>[] | ((data: T[]) => FieldConfig<T>[]);
   buttonLabel: string;
-  onCreate?: (values: Partial<T>) => void;
+  badge?: number;
+  onCreate: (formData: FormData) => void;
   onDelete?: (ids: string[]) => void;
+  onUpdate?: (updatedItems: T[]) => void;
+  dropdownOptions?: Record<string, { value: string; label: string }[]>;
 };
-
-export function EntityDataTableMulti<T extends Record<string, any>>({
+export function EntityDataTable<T extends Record<string, any>>({
   datasets,
   defaultDatasetKey,
 }: {
@@ -446,6 +254,9 @@ export function EntityDataTableMulti<T extends Record<string, any>>({
 }) {
   const [selectedDatasetKey, setSelectedDatasetKey] = useState(
     defaultDatasetKey ?? datasets[0]?.key
+  );
+  const [editedItems, setEditedItems] = useState<Record<string, Partial<T>>>(
+    {}
   );
 
   const selectedDataset = useMemo(
@@ -477,6 +288,7 @@ export function EntityDataTableMulti<T extends Record<string, any>>({
     setColumnFilters([]);
     setSorting([]);
     setPagination({ pageIndex: 0, pageSize: 10 });
+    setEditedItems({}); // Clear edits on tab change
   }, [selectedDatasetKey, selectedDataset.data]);
 
   const dataIds = useMemo<UniqueIdentifier[]>(
@@ -536,6 +348,25 @@ export function EntityDataTableMulti<T extends Record<string, any>>({
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
+  // Function to handle cell edits
+  const onEdit = (id: string, accessorKey: string, value: any) => {
+    setData((old) =>
+      old.map((row) => {
+        if (row.id === id) {
+          return {
+            ...row,
+            [accessorKey]: value,
+          };
+        }
+        return row;
+      })
+    );
+    setEditedItems((prev) => ({
+      ...prev,
+      [id]: { ...(prev[id] || {}), [accessorKey]: value },
+    }));
+  };
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (active && over && active.id !== over.id) {
@@ -552,7 +383,6 @@ export function EntityDataTableMulti<T extends Record<string, any>>({
     const selectedRows = table.getFilteredSelectedRowModel().rows;
     const numSelected = selectedRows.length;
     if (numSelected === 0) return;
-
     if (
       window.confirm(
         `Are you sure you want to delete ${numSelected} ${
@@ -571,12 +401,26 @@ export function EntityDataTableMulti<T extends Record<string, any>>({
     }
   }
 
-  function handleCreate(values: Partial<T>) {
-    if (selectedDataset.onCreate) selectedDataset.onCreate(values);
-    setDrawerOpen(false);
-  }
+  const handleCreate = async (formData: FormData) => {
+    if (selectedDataset?.onCreate) {
+      await selectedDataset.onCreate(formData); // <-- No conversion needed
+    }
+  };
 
-  // Resolve the drawerFields property here
+  const handleSave = () => {
+    if (selectedDataset.onUpdate) {
+      const updatedItems = Object.entries(editedItems).map(
+        ([id, changes]) =>
+          ({
+            ...data.find((item) => item.id === id),
+            ...changes,
+          } as T)
+      );
+      selectedDataset.onUpdate(updatedItems);
+      setEditedItems({}); // Clear temporary changes after saving
+    }
+  };
+
   const resolvedDrawerFields = useMemo(() => {
     return typeof selectedDataset.drawerFields === "function"
       ? selectedDataset.drawerFields(data)
@@ -584,22 +428,34 @@ export function EntityDataTableMulti<T extends Record<string, any>>({
   }, [selectedDataset.drawerFields, data]);
 
   return (
-    <div className="w-full flex-col justify-start gap-6">
-      <div className="flex items-center justify-between px-4 lg:px-6 mb-2">
-        <div>
-          <select
-            className="border rounded px-2 py-1"
-            value={selectedDatasetKey}
-            onChange={(e) => setSelectedDatasetKey(e.target.value)}
-          >
-            {datasets.map((ds) => (
-              <option key={ds.key} value={ds.key}>
-                {ds.label}
-              </option>
-            ))}
-          </select>
-        </div>
+    <Tabs
+      defaultValue={selectedDatasetKey}
+      value={selectedDatasetKey}
+      onValueChange={setSelectedDatasetKey}
+      className="w-full flex-col justify-start gap-6"
+    >
+      <div className="flex items-center justify-between px-4 lg:px-6">
+        <TabsList>
+          {datasets.map((tab) => (
+            <TabsTrigger key={tab.key} value={tab.key}>
+              {tab.label}
+              {tab.badge ? (
+                <Badge variant="secondary">{tab.badge}</Badge>
+              ) : null}
+            </TabsTrigger>
+          ))}
+        </TabsList>
         <div className="flex items-center gap-2">
+          {Object.keys(editedItems).length > 0 && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleSave}
+              className="flex items-center gap-1"
+            >
+              <span>Save Changes ({Object.keys(editedItems).length})</span>
+            </Button>
+          )}
           {table.getFilteredSelectedRowModel().rows.length > 0 && (
             <Button
               variant="destructive"
@@ -625,7 +481,10 @@ export function EntityDataTableMulti<T extends Record<string, any>>({
           </Button>
         </div>
       </div>
-      <div className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6">
+      <TabsContent
+        value={selectedDatasetKey}
+        className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
+      >
         <div className="overflow-hidden rounded-lg border">
           <DndContext
             collisionDetection={closestCenter}
@@ -676,7 +535,12 @@ export function EntityDataTableMulti<T extends Record<string, any>>({
                     strategy={verticalListSortingStrategy}
                   >
                     {table.getRowModel().rows.map((row) => (
-                      <DraggableRow key={row.id} row={row} />
+                      <DraggableRow
+                        key={row.id}
+                        row={row}
+                        onEdit={onEdit}
+                        dropdownOptions={selectedDataset.dropdownOptions} // Pass the dropdown options here
+                      />
                     ))}
                   </SortableContext>
                 ) : (
@@ -695,13 +559,13 @@ export function EntityDataTableMulti<T extends Record<string, any>>({
         </div>
         <EntityDrawerViewer
           item={{} as T}
-          fields={resolvedDrawerFields} // Now using the resolved array
+          fields={resolvedDrawerFields}
           triggerLabel={selectedDataset.buttonLabel}
           open={drawerOpen}
           onOpenChange={setDrawerOpen}
           onSubmit={handleCreate}
         />
-      </div>
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 }

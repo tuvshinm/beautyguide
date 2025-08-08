@@ -1,5 +1,6 @@
-import { Category, CategoryGroup } from "@prisma/client";
-import type { FieldConfig } from "./EntityDrawerViewer";
+import { Category, CategoryGroup, Product } from "@prisma/client";
+import { FieldConfig } from "./EntityDrawerViewer";
+
 export const categoryGroupDrawerFields: FieldConfig<CategoryGroup>[] = [
   { key: "name", label: "Group Name", type: "text" },
   {
@@ -22,10 +23,28 @@ export const categoryDrawerFields = (
       key: "categoryGroupId",
       label: "Category Group",
       type: "select",
-      // Dynamically create options from the categoryGroups data
       options: categoryGroups.map((group) => ({
         value: group.id,
         label: group.name,
+      })),
+    },
+  ];
+};
+
+export const productDrawerFields = (
+  categories: Category[]
+): FieldConfig<Product>[] => {
+  return [
+    { key: "name", label: "Name", type: "text" },
+    { key: "description", label: "Description", type: "text" },
+    { key: "imageUrl", label: "Image", type: "image" },
+    {
+      key: "categoryId",
+      label: "Category",
+      type: "select",
+      options: categories.map((cat) => ({
+        value: cat.id,
+        label: cat.name,
       })),
     },
   ];

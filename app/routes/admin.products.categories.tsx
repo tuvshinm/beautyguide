@@ -1,5 +1,5 @@
 import { useLoaderData } from "@remix-run/react";
-import { DatasetOption, EntityDataTableMulti } from "~/components/data-table";
+import { DatasetOption, EntityDataTable } from "~/components/data-table";
 import { db } from "~/utils/db.server";
 import {
   categoryColumns,
@@ -25,12 +25,27 @@ export const loader = async () => {
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
-  const newCategory = {
-    name: formData.get("name") as string,
-    categoryGroupId: formData.get("categoryGroupId") as string,
-  };
-  const response = await db.category.create({ data: newCategory });
-  return response;
+  const method = formData.get("_method");
+  if (method === "delete") {
+    const ids = formData.getAll("ids") as string[];
+    if (ids.length > 0) {
+      await db.category.deleteMany({
+        where: { id: { in: ids } },
+      });
+      return { success: true };
+    }
+    throw new Response("No IDs provided", { status: 400 });
+  }
+  if (method === "create") {
+    const newCategory = {
+      name: formData.get("name") as string,
+      categoryGroupId: formData.get("categoryGroupId") as string,
+    };
+    const response = await db.category.create({ data: newCategory });
+    return response;
+  }
+
+  throw new Response("Method Not Allowed", { status: 405 });
 };
 
 export default function ProductCategories() {
@@ -44,6 +59,7 @@ export default function ProductCategories() {
     drawerFields: categoryDrawerFields(categoryGroups),
     buttonLabel: "New Category",
     onCreate: handleCreate,
+    onDelete: handleDelete,
   };
 
   const categoryGroupDataset: DatasetOption<CategoryGroupWithCount> = {
@@ -54,11 +70,13 @@ export default function ProductCategories() {
     drawerFields: categoryGroupDrawerFields,
     buttonLabel: "New Category Group",
     onCreate: handleCreateCategoryGroup,
+    onDelete: handleDelete,
   };
   async function handleCreate(newCategory: Record<string, any>) {
     const formData = new FormData();
     Object.entries(newCategory).forEach(([key, value]) => {
       formData.append(key, value ?? "");
+      formData.append("_method", "create");
     });
     await fetch("/admin/products/categories", {
       method: "POST",
@@ -66,23 +84,33 @@ export default function ProductCategories() {
     });
     // Optionally reload or revalidate here
   }
-
   async function handleCreateCategoryGroup(
     newCategoryGroup: Record<string, any>
   ) {
     const formData = new FormData();
     Object.entries(newCategoryGroup).forEach(([key, value]) => {
       formData.append(key, value ?? "");
+      formData.append("_method", "create");
     });
     await fetch("/admin/products/categories/group", {
       method: "POST",
       body: formData,
     });
-    // Optionally reload or revalidate here
+  }
+  async function handleDelete(ids: string[]) {
+    const formData = new FormData();
+    ids.forEach((id) => {
+      formData.append("ids", id);
+    });
+    formData.append("_method", "delete");
+    await fetch("/admin/products/categories", {
+      method: "POST",
+      body: formData,
+    });
   }
 
   return (
-    <EntityDataTableMulti
+    <EntityDataTable
       datasets={[categoryDataset, categoryGroupDataset] as any}
     />
   );

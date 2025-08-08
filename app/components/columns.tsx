@@ -2,11 +2,12 @@ import { Category, Product } from "@prisma/client";
 import { ColumnDef } from "@tanstack/react-table";
 import { CategoryGroup } from "@prisma/client";
 
-export const productColumns: ColumnDef<Product>[] = [
+export const productColumns: (categories: any[]) => ColumnDef<Product>[] = (
+  categories
+) => [
   {
     accessorKey: "name",
     header: "Name",
-    cell: ({ row }) => row.original.name,
   },
   {
     accessorKey: "description",
@@ -16,6 +17,7 @@ export const productColumns: ColumnDef<Product>[] = [
   {
     accessorKey: "imageUrl",
     header: "Image",
+    enableSorting: false,
     cell: ({ row }) =>
       row.original.imageUrl ? (
         <img
@@ -30,6 +32,7 @@ export const productColumns: ColumnDef<Product>[] = [
   {
     accessorKey: "createdAt",
     header: "Created At",
+    enableSorting: true,
     cell: ({ row }) =>
       row.original.createdAt
         ? new Date(row.original.createdAt).toLocaleDateString()
@@ -37,8 +40,12 @@ export const productColumns: ColumnDef<Product>[] = [
   },
   {
     accessorKey: "categoryId",
-    header: "Category ID",
-    cell: ({ row }) => row.original.categoryId,
+    header: "Category",
+    cell: ({ row }) => {
+      const categoryId = row.original.categoryId;
+      const category = categories.find((cat) => cat.id === categoryId);
+      return category ? category.name : "N/A";
+    },
   },
 ];
 
@@ -46,12 +53,10 @@ export const categoryColumns: ColumnDef<Category>[] = [
   {
     accessorKey: "name",
     header: "Name",
-    cell: ({ row }) => row.original.name,
   },
   {
     accessorKey: "categoryGroupId",
     header: "Category Group ID",
-    cell: ({ row }) => row.original.categoryGroupId,
   },
 ];
 export type CategoryGroupWithCount = CategoryGroup & {
@@ -64,19 +69,17 @@ export const categoryGroupColumns: ColumnDef<CategoryGroupWithCount>[] = [
   {
     accessorKey: "name",
     header: "Name",
-    cell: ({ row }) => row.original.name,
   },
   {
     accessorKey: "id",
     header: "ID",
-    cell: ({ row }) => row.original.id,
   },
   {
     accessorKey: "affil",
     header: "Affiliation",
-    cell: ({ row }) => row.original.affil,
   },
   {
+    accessorKey: "categoriesCount", // Use a unique accessorKey
     header: "Categories Count",
     cell: ({ row }) => row.original._count?.categories ?? "—",
   },

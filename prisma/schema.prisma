@@ -8,108 +8,134 @@ datasource db {
 }
 
 model User {
-  id              String    @id @default(uuid())
-  facebookId      String    @unique
-  email           String?   @unique
-  name            String?
-  profilePicture  String?
-  createdAt       DateTime  @default(now())
-  lastLogin       DateTime  @updatedAt
-  reviews         Review[]
-  sessions        Session[]
+  id             String    @id @default(uuid())
+  facebookId     String    @unique
+  email          String?   @unique
+  name           String?
+  profilePicture String?
+  createdAt      DateTime  @default(now())
+  lastLogin      DateTime  @updatedAt
+  reviews        Review[]
+  sessions       Session[]
+  Flags           Flag[]
 }
+
 model Session {
-  id         String   @id @default(cuid())
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId     String
-  createdAt  DateTime @default(now())
-  expiresAt  DateTime
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
 
   @@index([userId])
 }
+
 model Product {
-  id           String     @id @default(uuid())
-  name         String
-  description  String?
-  imageUrl     String?
-  createdAt    DateTime   @default(now())
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
 
-  category     Category   @relation(fields: [categoryId], references: [id])
-  categoryId   String
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId String
 
-  tags         ProductTag[]
-  reviews      Review[]
+  tags    ProductTag[]
+  reviews Review[]
+  Flags    Flag[]
 
   @@index([name])
 }
 
 model Service {
-  id           String     @id @default(uuid())
-  name         String
-  description  String?
-  imageUrl     String?
-  createdAt    DateTime   @default(now())
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
 
-  category     Category   @relation(fields: [categoryId], references: [id])
-  categoryId   String
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId String
 
-  reviews      Review[]
+  reviews Review[]
+  Flags    Flag[]
 
   @@index([name])
 }
 
 model Category {
-  id        String     @id @default(uuid())
-  name      String     @unique
+  id   String @id @default(uuid())
+  name String @unique
 
-  categoryGroup     CategoryGroup   @relation(fields: [categoryGroupId], references: [id])
-  categoryGroupId   String
+  categoryGroup   CategoryGroup @relation(fields: [categoryGroupId], references: [id])
+  categoryGroupId String
 
-  products  Product[]
-  services  Service[]
+  products Product[]
+  services Service[]
 }
+
 enum Affiliation {
   PRODUCT
   SERVICE
 }
+
 model CategoryGroup {
-  id        String     @id @default(uuid())
-  name      String    
-  affil     Affiliation
-  categories  Category[]
+  id         String      @id @default(uuid())
+  name       String
+  affil      Affiliation
+  categories Category[]
 }
 
 model Tag {
-  id        String     @id @default(uuid())
-  name      String     @unique
-  products  ProductTag[]
+  id       String       @id @default(uuid())
+  name     String       @unique
+  products ProductTag[]
 }
 
 model ProductTag {
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId String
 
-  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  tagId     String
+  tag   Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId String
 
   @@id([productId, tagId])
 }
+
 model Review {
-  id         String    @id @default(uuid())
-  rating     Int       // 1–5 stars
-  comment    String?
-  createdAt  DateTime  @default(now())
+  id        String   @id @default(uuid())
+  rating    Int // 1–5 stars
+  comment   String?
+  createdAt DateTime @default(now())
 
-  product    Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId  String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String?
 
-  service    Service?  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  serviceId  String?
+  service   Service? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  serviceId String?
 
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId     String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  Flags   Flag[]
 
   @@index([productId])
   @@index([serviceId])
   @@index([userId])
+}
+model Flag {
+  id        String   @id @default(uuid())
+  reason    String?
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  review   Review? @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reviewId String?
+
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String?
+
+  service   Service? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  serviceId String?
 }

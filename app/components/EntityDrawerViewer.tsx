@@ -17,8 +17,8 @@ import {
   SelectContent,
   SelectItem,
 } from "~/components/ui/select";
+import { useEffect, useState } from "react";
 
-// Make sure to update this type with the new dynamic properties
 export type FieldConfig<T> = {
   key: keyof T;
   label: string;
@@ -32,47 +32,62 @@ export type FieldConfig<T> = {
 
 type EntityDrawerViewerProps<T> = {
   item: T;
-  fields: FieldConfig<T>[]; // Updated to use the new generic type
+  fields: FieldConfig<T>[];
   triggerLabel?: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  onSubmit?: (values: Partial<T>) => void;
+  // Change the onSubmit handler to accept FormData instead of a partial object
+  onSubmit?: (formData: FormData) => void;
 };
 
 export function EntityDrawerViewer<T extends Record<string, any>>({
   item,
   fields,
+  triggerLabel,
   open,
   onOpenChange,
   onSubmit,
 }: EntityDrawerViewerProps<T>) {
+  // Use local state to manage form values for controlled components
+  const [formValues, setFormValues] = useState<Partial<T>>({});
+
+  useEffect(() => {
+    // When the drawer opens, reset the form values
+    if (open) {
+      setFormValues(item);
+    }
+  }, [open, item]);
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const formData = new FormData(e.currentTarget);
-    const values: Partial<T> = {};
 
-    fields.forEach((field) => {
-      // Exclude "image" and other non-form-input types from being processed here
-      if (field.type !== "image") {
-        const val = formData.get(field.key as string);
-        if (val !== null) {
-          // You may want to add more type-specific parsing here if needed
-          values[field.key] = val as T[keyof T];
-        }
-      }
-    });
+    // Debugging: Log the FormData object
+    // Use a loop to see what keys and values are in the FormData
+    console.log("Client-side FormData content:");
+    for (let [key, value] of formData.entries()) {
+      console.log(`${key}:`, value);
+    }
 
-    onSubmit?.(values);
+    onSubmit?.(formData);
     onOpenChange?.(false);
   };
+
+  const isEditing = !!item?.id;
 
   return (
     <Drawer direction="right" open={open} onOpenChange={onOpenChange}>
       <DrawerContent>
         <DrawerHeader className="gap-1">
-          <DrawerTitle>{item.name ?? item.id}</DrawerTitle>
-          <DrawerDescription>{item.description ?? ""}</DrawerDescription>
+          <DrawerTitle>
+            {isEditing ? item.name ?? item.id : triggerLabel}
+          </DrawerTitle>
+          <DrawerDescription>
+            {isEditing
+              ? item.description ?? ""
+              : "Fill out the form to create a new item."}
+          </DrawerDescription>
         </DrawerHeader>
 
         <form
@@ -80,7 +95,6 @@ export function EntityDrawerViewer<T extends Record<string, any>>({
           className="flex flex-col gap-4 overflow-y-auto px-4 text-sm"
         >
           {fields.map((field) => {
-            // Check if the properties are functions and resolve them here
             const isDisabled =
               typeof field.disabled === "function"
                 ? field.disabled(item)
@@ -100,7 +114,7 @@ export function EntityDrawerViewer<T extends Record<string, any>>({
                   key={field.key as string}
                   type="hidden"
                   name={field.key as string}
-                  defaultValue={item[field.key]}
+                  defaultValue={formValues[field.key] ?? ""}
                 />
               );
             }
@@ -112,7 +126,7 @@ export function EntityDrawerViewer<T extends Record<string, any>>({
                   <Input
                     id={field.key as string}
                     name={field.key as string}
-                    defaultValue={item[field.key]}
+                    defaultValue={formValues[field.key] ?? ""}
                     disabled={isDisabled}
                     placeholder={placeholder}
                   />
@@ -122,22 +136,25 @@ export function EntityDrawerViewer<T extends Record<string, any>>({
                     id={field.key as string}
                     name={field.key as string}
                     type="date"
-                    defaultValue={item[field.key]}
+                    defaultValue={formValues[field.key] ?? ""}
                     disabled={isDisabled}
                     placeholder={placeholder}
                   />
                 )}
-                {field.type === "image" && item[field.key] && (
-                  <img
-                    src={item[field.key]}
-                    alt={field.label}
-                    style={{ width: 80, height: 80 }}
+                {field.type === "image" && (
+                  <Input
+                    id={field.key as string}
+                    name={field.key as string}
+                    type="file"
+                    accept="image/*"
+                    disabled={isDisabled}
+                    placeholder={placeholder}
                   />
                 )}
                 {field.type === "select" && fieldOptions && (
                   <Select
                     name={field.key as string}
-                    defaultValue={item[field.key]}
+                    defaultValue={String(formValues[field.key] ?? "")}
                     disabled={isDisabled}
                   >
                     <SelectTrigger id={field.key as string} className="w-full">
