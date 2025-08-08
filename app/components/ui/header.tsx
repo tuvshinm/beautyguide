@@ -14,8 +14,9 @@ type CategoryGroupWithCategories = CategoryGroup & {
 };
 type Props = {
   categoryGroups: CategoryGroupWithCategories[];
+  handleFacebookLogin: () => void;
 };
-export function Header({ categoryGroups }: Props) {
+export function Header({ categoryGroups, handleFacebookLogin }: Props) {
   const [currentCollapsible, setCurrentCollapsible] =
     useState<CollapsibleKey>("none");
   const [isOpen, setIsOpen] = useState(false);
@@ -52,7 +53,12 @@ export function Header({ categoryGroups }: Props) {
             setCurrentCollapsible={setCurrentCollapsible}
             setIsOpen={setIsOpen}
           />
-          <h1>НЭВТРЭХ</h1>
+          <button
+            onClick={handleFacebookLogin}
+            className="mt-4 p-2 bg-blue-600 text-white rounded"
+          >
+            Login with Facebook
+          </button>
         </div>
         <MobileDrawer />
       </div>

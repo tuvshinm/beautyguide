@@ -1,4 +1,5 @@
 import type { MetaFunction } from "@remix-run/node";
+/// <reference types="facebook-js-sdk" />
 import { Header } from "~/components/ui/header";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
@@ -20,9 +21,25 @@ export const meta: MetaFunction = () => {
 
 export default function Index() {
   const { categoryGroups } = useLoaderData<typeof loader>();
+
+  const handleFacebookLogin = () => {
+    FB.login(
+      (response) => {
+        if (response.authResponse) {
+          console.log("Logged in!", response);
+        } else {
+          console.log("User cancelled login or did not fully authorize.");
+        }
+      },
+      { scope: "public_profile,email" }
+    );
+  };
   return (
     <div>
-      <Header categoryGroups={categoryGroups} />{" "}
+      <Header
+        categoryGroups={categoryGroups}
+        handleFacebookLogin={handleFacebookLogin}
+      />
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { useLoaderData, useFetcher } from "@remix-run/react";
 import { DatasetOption, EntityDataTable } from "~/components/data-table";
 import { db } from "~/utils/db.server";
 import { productColumns } from "~/components/columns";
-import { uploadToCloudinary } from "~/components/utils/cloudinary.server";
+import { uploadToCloudinary } from "~/utils/cloudinary.server";
 import { Product } from "@prisma/client";
 import { productDrawerFields } from "~/components/drawers";
 
