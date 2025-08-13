@@ -1,1 +1,1 @@
-export type CollapsibleKey = "none" | "products" | "services" | "advice";
+export type CollapsibleKey = "none" | "PRODUCT" | "SERVICE" | "advice";

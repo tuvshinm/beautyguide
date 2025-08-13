@@ -1,17 +1,18 @@
 import { Collapsible, CollapsibleContent } from "./collapsible";
 import type { CollapsibleKey } from "../types";
 import { CategoryGroup } from "@prisma/client";
+
 type CategoryGroupWithCategories = CategoryGroup & {
   categories: {
     id: string;
     name: string;
-    // other fields on Category if any
   }[];
 };
+
 type Props = {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
-  currentKey: CollapsibleKey; // or your CollapsibleKey type
+  currentKey: CollapsibleKey;
   data: CategoryGroupWithCategories[];
 };
 
@@ -21,8 +22,10 @@ export function CategoryCollapsible({
   currentKey,
   data,
 }: Props) {
-  // Find the group matching the current key (affil matches currentKey uppercased)
-  const activeGroup = data.find(
+  // Optionally filter by currentKey if you want to show only relevant groups
+  // or remove filtering to show all groups regardless of currentKey
+  // For now, I'll assume you want all groups shown, but you can filter if needed:
+  const filteredGroups = data.filter(
     (group) => group.affil.toLowerCase() === currentKey.toLowerCase()
   );
 
@@ -31,19 +34,31 @@ export function CategoryCollapsible({
       <Collapsible
         open={isOpen}
         onOpenChange={setIsOpen}
-        className={`flex w-screen flex-col gap-2 overflow-hidden transition-all duration-150 ease-in ${
-          isOpen ? "opacity-100 p-2" : "opacity-0 p-0"
+        className={`flex w-screen flex-col gap-4 overflow-hidden transition-all duration-150 ease-in ${
+          isOpen ? "opacity-100 p-1" : "opacity-0 p-0"
         } border-b-[1px] border-b-[#CCC9C9]`}
       >
-        <CollapsibleContent className="flex flex-col gap-2">
-          {activeGroup?.categories.map((cat) => (
-            <div
-              key={cat.id}
-              className="rounded-md border px-4 py-2 font-mono text-sm"
-            >
-              {cat.name}
+        <CollapsibleContent className="flex flex-row gap-6 justify-evenly">
+          {filteredGroups.map((group) => (
+            <div key={group.id}>
+              <div className="mb-4 volkhov-bold">{group.name}</div>
+              <div
+                className="grid gap-3"
+                style={{
+                  gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+                }}
+              >
+                {group.categories.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="rounded-md py-2 text-sm volkhov-regular"
+                  >
+                    {cat.name}
+                  </div>
+                ))}
+              </div>
             </div>
-          )) || null}
+          ))}
         </CollapsibleContent>
       </Collapsible>
     </div>

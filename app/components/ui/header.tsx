@@ -28,40 +28,50 @@ export function Header({ categoryGroups, handleFacebookLogin }: Props) {
           <h1>GUIDE</h1>
         </div>
         <div className="relative w-full max-w-sm">
-          <IoMdSearch className="absolute left-3 top-1/2 -translate-y-1/2  h-5 w-5" />
+          <IoMdSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5" />
           <Input placeholder="Хайх..." className="pl-10" />
         </div>
-        <div className="hidden md:flex flex-row gap-8 volkhov-regular">
-          <CategoryButton
-            label="БҮТЭЭГДЭХҮҮН"
-            value="products"
-            currentCollapsible={currentCollapsible}
-            setCurrentCollapsible={setCurrentCollapsible}
-            setIsOpen={setIsOpen}
-          />
-          <CategoryButton
-            label="ҮЙЛЧИЛГЭЭ"
-            value="services"
-            currentCollapsible={currentCollapsible}
-            setCurrentCollapsible={setCurrentCollapsible}
-            setIsOpen={setIsOpen}
-          />
-          <CategoryButton
-            label="ЗӨВЛӨГӨӨ"
-            value="advice"
-            currentCollapsible={currentCollapsible}
-            setCurrentCollapsible={setCurrentCollapsible}
-            setIsOpen={setIsOpen}
-          />
-          <button
-            onClick={handleFacebookLogin}
-            className="mt-4 p-2 bg-blue-600 text-white rounded"
-          >
-            Login with Facebook
-          </button>
-        </div>
+        <h1
+          className="text-center cursor-pointer hidden md:block bg-blue-400 rounded p-2 text-white font-bold"
+          onClick={handleFacebookLogin}
+        >
+          Login with Facebook
+        </h1>
         <MobileDrawer />
       </div>
+      <div className="flex flex-wrap justify-center gap-4 border-b border-[#CCC9C9] py-2 volkhov-regular">
+        <CategoryButton
+          label="БҮТЭЭГДЭХҮҮН"
+          value="PRODUCT"
+          currentCollapsible={currentCollapsible}
+          setCurrentCollapsible={setCurrentCollapsible}
+          setIsOpen={setIsOpen}
+        />
+        <CategoryButton
+          label="ҮЙЛЧИЛГЭЭ"
+          value="SERVICE"
+          currentCollapsible={currentCollapsible}
+          setCurrentCollapsible={setCurrentCollapsible}
+          setIsOpen={setIsOpen}
+        />
+        <CategoryButton
+          label="ЗӨВЛӨГӨӨ"
+          value="advice"
+          currentCollapsible={currentCollapsible}
+          setCurrentCollapsible={setCurrentCollapsible}
+          setIsOpen={setIsOpen}
+        />
+
+        {/* Mobile login button in category row */}
+        {/* <h1
+          className="text-center cursor-pointer md:hidden"
+          onClick={handleFacebookLogin}
+        >
+          Login with Facebook
+        </h1> */}
+      </div>
+
+      {/* Collapsible content */}
       <CategoryCollapsible
         isOpen={isOpen}
         setIsOpen={setIsOpen}

@@ -67,7 +67,6 @@ export async function action({ request }: ActionFunctionArgs) {
       return new Response("Image upload failed.", { status: 500 });
     }
   } else {
-    // This block is for when there is no file, or it's invalid
     console.error("No valid image file received. Received file:", imageFile);
   }
 

@@ -4,12 +4,22 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLoaderData,
 } from "@remix-run/react";
 import type { LinksFunction } from "@remix-run/node";
 
 import "./tailwind.css";
 import { useEffect } from "react";
-
+import { Header } from "./components/ui/header";
+import { db } from "./utils/db.server";
+export async function loader() {
+  const categoryGroups = await db.categoryGroup.findMany({
+    include: {
+      categories: true,
+    },
+  });
+  return { categoryGroups };
+}
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
@@ -69,6 +79,34 @@ export default function App() {
 
     loadFacebookSDK();
   }, []);
-
-  return <Outlet />;
+  const { categoryGroups } = useLoaderData<typeof loader>();
+  const handleFacebookLogin = () => {
+    FB.login(
+      (response) => {
+        if (response.authResponse) {
+          console.log("Logged in!", response);
+        } else {
+          console.log("User cancelled login or did not fully authorize.");
+        }
+      },
+      { scope: "public_profile,email" }
+    );
+  };
+  return (
+    <html lang="en">
+      <head>
+        <Meta />
+        <Links />
+      </head>
+      <body>
+        <Header
+          categoryGroups={categoryGroups}
+          handleFacebookLogin={handleFacebookLogin}
+        />
+        <Outlet /> {/* Render child routes */}
+        <ScrollRestoration />
+        <Scripts />
+      </body>
+    </html>
+  );
 }
