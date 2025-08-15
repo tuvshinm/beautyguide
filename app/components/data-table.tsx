@@ -39,10 +39,9 @@ import {
   useReactTable,
   VisibilityState,
 } from "@tanstack/react-table";
-import { z } from "zod";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { EntityDrawerViewer, FieldConfig } from "./EntityDrawerViewer";
+import { EntityDrawerViewer } from "./EntityDrawerViewer";
 import {
   Table,
   TableBody,
@@ -52,46 +51,10 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import {
-  CSSProperties,
-  HTMLProps,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-
-function IndeterminateCheckbox({
-  indeterminate,
-  className = "",
-  ...rest
-}: { indeterminate?: boolean } & HTMLProps<HTMLInputElement>) {
-  const ref = useRef<HTMLInputElement>(null!);
-  useEffect(() => {
-    if (typeof indeterminate === "boolean") {
-      ref.current.indeterminate = indeterminate;
-    }
-  }, [ref, indeterminate]);
-  return (
-    <input
-      type="checkbox"
-      ref={ref}
-      className={className + " cursor-pointer"}
-      {...rest}
-    />
-  );
-}
-
-export const productSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  description: z.string().nullable(),
-  imageUrl: z.string().nullable(),
-  createdAt: z.string(),
-  categoryId: z.string(),
-});
-
+import { CSSProperties, useEffect, useId, useMemo, useState } from "react";
+import { DatasetOption } from "./types";
+import { IndeterminateCheckbox } from "./ui/indeterminateCheckbox";
+import { EditableCell } from "./ui/editableCell";
 export function DragHandle({
   attributes,
   listeners,
@@ -110,79 +73,6 @@ export function DragHandle({
       <FaGripVertical className="text-muted-foreground size-3" />
       <span className="sr-only">Drag to reorder</span>
     </Button>
-  );
-}
-// Editable Cell component
-function EditableCell({
-  cell,
-  onEdit,
-  dropdownOptions, // New prop for dropdown options
-}: {
-  cell: any;
-  onEdit: (id: string, accessorKey: string, value: any) => void;
-  dropdownOptions?: Record<string, { value: string; label: string }[]>;
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [value, setValue] = useState(cell.getValue());
-
-  const accessorKey = cell.column.columnDef.accessorKey as string;
-  const id = cell.row.original.id;
-
-  const handleBlur = () => {
-    setIsEditing(false);
-    if (value !== cell.getValue()) {
-      onEdit(id, accessorKey, value);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleBlur();
-    }
-  };
-
-  // Check if a dropdown is configured for this accessorKey
-  const options = dropdownOptions?.[accessorKey];
-
-  if (isEditing && options) {
-    return (
-      <select
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={handleBlur}
-        autoFocus
-        className="w-full h-full p-2 border rounded-md"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    );
-  }
-
-  if (isEditing && accessorKey) {
-    return (
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={handleBlur}
-        onKeyDown={handleKeyDown}
-        autoFocus
-        className="w-full h-full p-2 border rounded-md"
-      />
-    );
-  }
-
-  return (
-    <div
-      onClick={() => setIsEditing(true)}
-      className="w-full h-full cursor-pointer p-2"
-    >
-      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-    </div>
   );
 }
 
@@ -232,19 +122,6 @@ export function DraggableRow<T extends Record<string, any>>({
     </TableRow>
   );
 }
-export type DatasetOption<T extends Record<string, any>> = {
-  key: string;
-  label: string;
-  data: T[];
-  columns: ColumnDef<T>[];
-  drawerFields: FieldConfig<T>[] | ((data: T[]) => FieldConfig<T>[]);
-  buttonLabel: string;
-  badge?: number;
-  onCreate: (formData: FormData) => void;
-  onDelete?: (ids: string[]) => void;
-  onUpdate?: (updatedItems: T[]) => void;
-  dropdownOptions?: Record<string, { value: string; label: string }[]>;
-};
 export function EntityDataTable<T extends Record<string, any>>({
   datasets,
   defaultDatasetKey,
@@ -392,7 +269,7 @@ export function EntityDataTable<T extends Record<string, any>>({
     ) {
       const idsToDelete = selectedRows.map((row) => row.id);
       if (selectedDataset.onDelete) {
-        await selectedDataset.onDelete(idsToDelete);
+        selectedDataset.onDelete(idsToDelete);
       }
       setData((current) =>
         current.filter((row) => !idsToDelete.includes(row.id))
@@ -403,7 +280,12 @@ export function EntityDataTable<T extends Record<string, any>>({
 
   const handleCreate = async (formData: FormData) => {
     if (selectedDataset?.onCreate) {
-      await selectedDataset.onCreate(formData); // <-- No conversion needed
+      selectedDataset.onCreate(formData);
+    }
+  };
+  const handleDraft = async (formData: FormData) => {
+    if (selectedDataset?.onDraft) {
+      selectedDataset.onDraft(formData);
     }
   };
 
@@ -564,6 +446,7 @@ export function EntityDataTable<T extends Record<string, any>>({
           open={drawerOpen}
           onOpenChange={setDrawerOpen}
           onSubmit={handleCreate}
+          onDraft={handleDraft}
         />
       </TabsContent>
     </Tabs>

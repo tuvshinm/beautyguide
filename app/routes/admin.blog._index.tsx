@@ -1,32 +1,37 @@
+import { Blog } from "@prisma/client";
 import { ActionFunctionArgs } from "@remix-run/node";
 import { useFetcher, useLoaderData } from "@remix-run/react";
-import { useState } from "react";
-import { is } from "zod/v4/locales";
-import { blogDrawerFields, categoryDrawerFields } from "~/components/drawers";
-import { EntityDrawerViewer } from "~/components/EntityDrawerViewer";
-import { Button } from "~/components/ui/button";
+import type { DatasetOption } from "~/components/types";
+import { blogDrawerFields } from "~/components/drawers";
+import { EntityDataTable } from "~/components/data-table";
 import { uploadToCloudinary } from "~/utils/cloudinary.server";
 import { db } from "~/utils/db.server";
-export async function loader() {
-  const blog = await db.blog.findMany();
+import { blogColumns } from "~/components/columns";
 
-  return { blog };
+// Loader
+export async function loader() {
+  const blogs = await db.blog.findMany();
+  return { blogs };
 }
+
+// Action
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const method = formData.get("_method");
+
   if (method === "delete") {
     const ids = formData.getAll("ids") as string[];
     if (!ids.length) throw new Response("No IDs provided", { status: 400 });
-
     await db.blog.deleteMany({ where: { id: { in: ids } } });
     return { success: true };
   }
+
   if (method === "draft" || method === "create") {
     const title = formData.get("title") as string;
     const body = formData.get("body") as string;
     const imageFile = formData.get("photoUrl") as File;
     const isDraft = method === "draft";
+
     let imageUrl = "";
     if (
       imageFile &&
@@ -41,61 +46,63 @@ export async function action({ request }: ActionFunctionArgs) {
         return new Response("Image upload failed.", { status: 500 });
       }
     }
+
     const newBlog = {
       title,
       body,
       draft: isDraft,
       ...(imageUrl && { photoUrl: imageUrl }),
     };
+
     const response = await db.blog.create({ data: newBlog });
     return new Response(JSON.stringify(response), {
       status: 201,
       headers: { "Content-Type": "application/json" },
     });
   }
+
+  return new Response("Method not allowed", { status: 405 });
 }
 
-export default function Page() {
-  const { blog } = useLoaderData<typeof loader>();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+// Component
+export default function BlogIndex() {
+  const { blogs } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
+
   async function handleCreate(formData: FormData) {
+    formData.append("_method", "create");
     fetcher.submit(formData, {
       method: "post",
       encType: "multipart/form-data",
     });
   }
-  function handleDraft(formData: FormData): void {
-    throw new Error("Function not implemented.");
+
+  async function handleDraft(formData: FormData) {
+    formData.append("_method", "draft");
+    fetcher.submit(formData, {
+      method: "post",
+      encType: "multipart/form-data",
+    });
   }
 
-  return (
-    <div className="flex flex-col justify-center items-center">
-      <h1>Blog</h1>
-      {blog.map((blog) =>
-        blog.photoUrl ? (
-          <div key={blog.id}>
-            <h2>{blog.title}</h2>
-            <p>{blog.body}</p>
-            <img src={blog.photoUrl} alt={blog.title} className="w-full h-64" />
-          </div>
-        ) : (
-          <div key={blog.id}>
-            <h2>{blog.title}</h2>
-            <p>{blog.body}</p>
-          </div>
-        )
-      )}
-      <Button onClick={() => setDrawerOpen(true)}>Create Blog Post</Button>
-      <EntityDrawerViewer
-        item={{} as any}
-        fields={blogDrawerFields}
-        triggerLabel={"Create Blog Post"}
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        onSubmit={handleCreate}
-        onDraft={handleDraft}
-      />
-    </div>
-  );
+  async function handleDelete(ids: string[]) {
+    const formData = new FormData();
+    ids.forEach((id) => formData.append("ids", id));
+    formData.append("_method", "delete");
+    fetcher.submit(formData, { method: "post" });
+  }
+
+  const blogDataset: DatasetOption<Blog> = {
+    key: "blogs",
+    label: "Blogs",
+    data: blogs,
+    columns: blogColumns,
+    drawerFields: blogDrawerFields,
+    buttonLabel: "Create Blog Post",
+    onCreate: handleCreate,
+    onDelete: handleDelete,
+    onDraft: handleDraft,
+  };
+
+  return <EntityDataTable datasets={[blogDataset]} />;
 }

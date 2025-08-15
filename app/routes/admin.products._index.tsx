@@ -1,12 +1,12 @@
 import { ActionFunctionArgs, MetaFunction } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
-import { DatasetOption, EntityDataTable } from "~/components/data-table";
+import { EntityDataTable } from "~/components/data-table";
 import { db } from "~/utils/db.server";
 import { productColumns } from "~/components/columns";
 import { uploadToCloudinary } from "~/utils/cloudinary.server";
 import { Product } from "@prisma/client";
 import { productDrawerFields } from "~/components/drawers";
-
+import type { DatasetOption } from "~/components/types";
 export async function loader() {
   const products = await db.product.findMany({
     skip: 0,

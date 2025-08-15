@@ -1,4 +1,4 @@
-import { Category, Product } from "@prisma/client";
+import { Blog, Category, Product } from "@prisma/client";
 import { ColumnDef } from "@tanstack/react-table";
 import { CategoryGroup } from "@prisma/client";
 
@@ -48,15 +48,45 @@ export const productColumns: (categories: any[]) => ColumnDef<Product>[] = (
     },
   },
 ];
-
-export const categoryColumns: ColumnDef<Category>[] = [
+export const blogColumns: ColumnDef<Blog>[] = [
+  {
+    accessorKey: "title",
+    header: "Title",
+  },
+  {
+    accessorKey: "body",
+    header: "Body",
+  },
+  {
+    accessorKey: "photoUrl",
+    header: "Image",
+    cell: ({ row }) =>
+      row.original.photoUrl ? (
+        <img
+          src={row.original.photoUrl}
+          alt={row.original.title}
+          style={{ width: 60, height: 60, objectFit: "cover" }}
+        />
+      ) : (
+        "—"
+      ),
+  },
+];
+export const categoryColumns = (
+  categoryGroups: CategoryGroup[]
+): ColumnDef<Category>[] => [
   {
     accessorKey: "name",
     header: "Name",
   },
   {
     accessorKey: "categoryGroupId",
-    header: "Category Group ID",
+    header: "Category Group",
+    cell: ({ row }) => {
+      const groupId = row.original.categoryGroupId;
+      const group = categoryGroups.find((g) => g.id === groupId);
+      return group ? group.name : "N/A";
+    },
   },
 ];
 export type CategoryGroupWithCount = CategoryGroup & {
