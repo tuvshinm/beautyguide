@@ -1,4 +1,4 @@
-import { Category, CategoryGroup, Product } from "@prisma/client";
+import { Blog, Category, CategoryGroup, Product } from "@prisma/client";
 import { FieldConfig } from "./EntityDrawerViewer";
 
 export const categoryGroupDrawerFields: FieldConfig<CategoryGroup>[] = [
@@ -13,7 +13,11 @@ export const categoryGroupDrawerFields: FieldConfig<CategoryGroup>[] = [
     ],
   },
 ];
-
+export const blogDrawerFields: FieldConfig<Blog>[] = [
+  { key: "title", label: "Title", type: "text" },
+  { key: "body", label: "Body", type: "field" },
+  { key: "photoUrl", label: "Photo URL", type: "image" },
+];
 export const categoryDrawerFields = (
   categoryGroups: CategoryGroup[]
 ): FieldConfig<Category>[] => {

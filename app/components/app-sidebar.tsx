@@ -46,9 +46,19 @@ const data = {
           title: "All Reviews",
           url: "/admin/reviews",
         },
+      ],
+    },
+    {
+      title: "Blog",
+      url: "/admin/blog",
+      items: [
         {
-          title: "Pending Approval",
-          url: "/admin/reviews/pending",
+          title: "All Blog Posts",
+          url: "/admin/blog",
+        },
+        {
+          title: "Drafts",
+          url: "/admin/blog/drafts",
         },
       ],
     },

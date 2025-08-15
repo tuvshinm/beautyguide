@@ -17,18 +17,25 @@ import {
   SelectContent,
   SelectItem,
 } from "~/components/ui/select";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Textarea } from "./ui/textarea";
 
 export type FieldConfig<T> = {
   key: keyof T;
   label: string;
-  type: "text" | "select" | "date" | "image" | "hidden";
+  type: "text" | "select" | "date" | "image" | "hidden" | "field";
   options?:
     | { value: string; label: string }[]
     | ((item: T) => { value: string; label: string }[]);
   disabled?: boolean | ((item: T) => boolean);
   placeholder?: string | ((item: T) => string);
 };
+function useDebounceEffect(effect: () => void, deps: any[], delay: number) {
+  useEffect(() => {
+    const handler = setTimeout(() => effect(), delay);
+    return () => clearTimeout(handler);
+  }, [...deps, delay]);
+}
 
 type EntityDrawerViewerProps<T> = {
   item: T;
@@ -36,8 +43,8 @@ type EntityDrawerViewerProps<T> = {
   triggerLabel?: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  // Change the onSubmit handler to accept FormData instead of a partial object
   onSubmit?: (formData: FormData) => void;
+  onDraft?: (formData: FormData) => void;
 };
 
 export function EntityDrawerViewer<T extends Record<string, any>>({
@@ -47,31 +54,49 @@ export function EntityDrawerViewer<T extends Record<string, any>>({
   open,
   onOpenChange,
   onSubmit,
+  onDraft,
 }: EntityDrawerViewerProps<T>) {
-  // Use local state to manage form values for controlled components
   const [formValues, setFormValues] = useState<Partial<T>>({});
+  const formRef = useRef<HTMLFormElement | null>(null);
 
+  // Load draft from localStorage when opening (if exists)
   useEffect(() => {
-    // When the drawer opens, reset the form values
     if (open) {
-      setFormValues(item);
+      const savedDraft = localStorage.getItem("entityDraft");
+      if (savedDraft) {
+        setFormValues(JSON.parse(savedDraft));
+      } else {
+        setFormValues(item);
+      }
     }
   }, [open, item]);
 
+  // Local storage autosave (fast debounce)
+  useDebounceEffect(
+    () => {
+      if (Object.keys(formValues).length > 0) {
+        localStorage.setItem("entityDraft", JSON.stringify(formValues));
+      }
+    },
+    [formValues],
+    500
+  );
+
+  // Optional server draft save (slower debounce)
+  const handleChange = (key: keyof T, value: any) => {
+    setFormValues((prev) => ({ ...prev, [key]: value }));
+  };
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     const formData = new FormData(e.currentTarget);
-
-    // Debugging: Log the FormData object
-    // Use a loop to see what keys and values are in the FormData
-    console.log("Client-side FormData content:");
-    for (let [key, value] of formData.entries()) {
-      console.log(`${key}:`, value);
+    if (formData.get("_method") === "draft") {
+      onDraft?.(formData);
+      return;
     }
-
     onSubmit?.(formData);
     onOpenChange?.(false);
+    localStorage.removeItem("entityDraft");
   };
 
   const isEditing = !!item?.id;
@@ -91,9 +116,12 @@ export function EntityDrawerViewer<T extends Record<string, any>>({
         </DrawerHeader>
 
         <form
+          ref={formRef}
           onSubmit={handleSubmit}
           className="flex flex-col gap-4 overflow-y-auto px-4 text-sm"
         >
+          <input type="hidden" name="_method" id="_method" />
+
           {fields.map((field) => {
             const isDisabled =
               typeof field.disabled === "function"
@@ -108,13 +136,16 @@ export function EntityDrawerViewer<T extends Record<string, any>>({
                 ? field.placeholder(item)
                 : field.placeholder;
 
+            const value = formValues[field.key] ?? "";
+
             if (field.type === "hidden") {
               return (
                 <Input
                   key={field.key as string}
                   type="hidden"
                   name={field.key as string}
-                  defaultValue={formValues[field.key] ?? ""}
+                  value={value as string}
+                  onChange={(e) => handleChange(field.key, e.target.value)}
                 />
               );
             }
@@ -126,7 +157,8 @@ export function EntityDrawerViewer<T extends Record<string, any>>({
                   <Input
                     id={field.key as string}
                     name={field.key as string}
-                    defaultValue={formValues[field.key] ?? ""}
+                    value={value as string}
+                    onChange={(e) => handleChange(field.key, e.target.value)}
                     disabled={isDisabled}
                     placeholder={placeholder}
                   />
@@ -136,7 +168,8 @@ export function EntityDrawerViewer<T extends Record<string, any>>({
                     id={field.key as string}
                     name={field.key as string}
                     type="date"
-                    defaultValue={formValues[field.key] ?? ""}
+                    value={value as string}
+                    onChange={(e) => handleChange(field.key, e.target.value)}
                     disabled={isDisabled}
                     placeholder={placeholder}
                   />
@@ -151,10 +184,21 @@ export function EntityDrawerViewer<T extends Record<string, any>>({
                     placeholder={placeholder}
                   />
                 )}
+                {field.type === "field" && (
+                  <Textarea
+                    id={field.key as string}
+                    name={field.key as string}
+                    value={value as string}
+                    onChange={(e) => handleChange(field.key, e.target.value)}
+                    disabled={isDisabled}
+                    placeholder={placeholder}
+                  />
+                )}
                 {field.type === "select" && fieldOptions && (
                   <Select
                     name={field.key as string}
-                    defaultValue={String(formValues[field.key] ?? "")}
+                    value={String(value)}
+                    onValueChange={(val) => handleChange(field.key, val)}
                     disabled={isDisabled}
                   >
                     <SelectTrigger id={field.key as string} className="w-full">
@@ -174,8 +218,31 @@ export function EntityDrawerViewer<T extends Record<string, any>>({
               </div>
             );
           })}
-          <DrawerFooter>
-            <Button type="submit">Submit</Button>
+
+          <DrawerFooter className="flex justify-end flex-row">
+            <Button
+              type="submit"
+              onClick={() =>
+                ((
+                  document.getElementById("_method") as HTMLInputElement
+                ).value = "")
+              }
+            >
+              Submit
+            </Button>
+
+            {onDraft && (
+              <Button
+                type="submit"
+                onClick={() =>
+                  ((
+                    document.getElementById("_method") as HTMLInputElement
+                  ).value = "draft")
+                }
+              >
+                Save Draft
+              </Button>
+            )}
             <DrawerClose asChild>
               <Button variant="outline">Cancel</Button>
             </DrawerClose>
