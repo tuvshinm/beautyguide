@@ -1,7 +1,9 @@
-import { Blog, Category, Product } from "@prisma/client";
-import { ColumnDef } from "@tanstack/react-table";
+import { Affiliation, Blog, Category, Product } from "@prisma/client";
+import { ColumnDef as BaseColumnDef } from "@tanstack/react-table";
 import { CategoryGroup } from "@prisma/client";
-
+type ColumnDef<TData> = BaseColumnDef<TData> & {
+  enableEditing?: boolean;
+};
 export const productColumns: (categories: any[]) => ColumnDef<Product>[] = (
   categories
 ) => [
@@ -72,9 +74,17 @@ export const blogColumns: ColumnDef<Blog>[] = [
       ),
   },
 ];
+export type categoryColumnsWithCount = Category & {
+  _count?: {
+    categories: number;
+  };
+  settings?: {
+    "no-edit"?: boolean;
+  };
+};
 export const categoryColumns = (
   categoryGroups: CategoryGroup[]
-): ColumnDef<Category>[] => [
+): ColumnDef<categoryColumnsWithCount>[] => [
   {
     accessorKey: "name",
     header: "Name",
@@ -88,13 +98,23 @@ export const categoryColumns = (
       return group ? group.name : "N/A";
     },
   },
+  {
+    accessorKey: "productsCount",
+    header: "Products Count",
+    cell: ({ row }) => row.original._count?.categories ?? "—",
+    enableEditing: false,
+  },
 ];
 export type CategoryGroupWithCount = CategoryGroup & {
   _count?: {
     categories: number;
   };
 };
-
+export const AffiliationLabels: Record<Affiliation, string> = {
+  [Affiliation.PRODUCT]: "Product",
+  [Affiliation.SERVICE]: "Service",
+  [Affiliation.BLOG]: "Blog",
+};
 export const categoryGroupColumns: ColumnDef<CategoryGroupWithCount>[] = [
   {
     accessorKey: "name",
@@ -107,10 +127,15 @@ export const categoryGroupColumns: ColumnDef<CategoryGroupWithCount>[] = [
   {
     accessorKey: "affil",
     header: "Affiliation",
+    cell: ({ row }) => {
+      const affilValue: Affiliation = row.original.affil; // enum number
+      return AffiliationLabels[affilValue] ?? "N/A";
+    },
   },
   {
     accessorKey: "categoriesCount", // Use a unique accessorKey
     header: "Categories Count",
     cell: ({ row }) => row.original._count?.categories ?? "—",
+    enableEditing: false,
   },
 ];

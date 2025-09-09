@@ -56,7 +56,7 @@ export function Header({ categoryGroups, handleFacebookLogin }: Props) {
         />
         <CategoryButton
           label="ЗӨВЛӨГӨӨ"
-          value="advice"
+          value="BLOG"
           currentCollapsible={currentCollapsible}
           setCurrentCollapsible={setCurrentCollapsible}
           setIsOpen={setIsOpen}

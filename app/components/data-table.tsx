@@ -79,7 +79,7 @@ export function DragHandle({
 export function DraggableRow<T extends Record<string, any>>({
   row,
   onEdit,
-  dropdownOptions, // Pass the new prop here
+  dropdownOptions,
 }: {
   row: Row<T>;
   onEdit: (id: string, accessorKey: string, value: any) => void;
@@ -262,19 +262,27 @@ export function EntityDataTable<T extends Record<string, any>>({
     if (numSelected === 0) return;
     if (
       window.confirm(
-        `Are you sure you want to delete ${numSelected} ${
+        `⚠️ WARNING! You are about to delete ${numSelected} ${
           numSelected === 1 ? "entry" : "entries"
-        }?`
+        }!\n\nThis action will DELETE ALL data associated with the selected items and CANNOT be undone!`
       )
     ) {
-      const idsToDelete = selectedRows.map((row) => row.id);
-      if (selectedDataset.onDelete) {
-        selectedDataset.onDelete(idsToDelete);
+      if (
+        window.confirm(
+          `FINAL CONFIRMATION!\n\nDeleting ${numSelected} ${
+            numSelected === 1 ? "entry" : "entries"
+          } will PERMANENTLY remove all associated data. This CANNOT be undone!\n\nAre you absolutely sure?`
+        )
+      ) {
+        const idsToDelete = selectedRows.map((row) => row.id);
+        if (selectedDataset.onDelete) {
+          selectedDataset.onDelete(idsToDelete);
+        }
+        setData((current) =>
+          current.filter((row) => !idsToDelete.includes(row.id))
+        );
+        setRowSelection({});
       }
-      setData((current) =>
-        current.filter((row) => !idsToDelete.includes(row.id))
-      );
-      setRowSelection({});
     }
   }
 

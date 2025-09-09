@@ -10,6 +10,7 @@ export const categoryGroupDrawerFields: FieldConfig<CategoryGroup>[] = [
     options: [
       { value: "PRODUCT", label: "Product" },
       { value: "SERVICE", label: "Service" },
+      { value: "BLOG", label: "Blog" },
     ],
   },
 ];

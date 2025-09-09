@@ -1,7 +1,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { FieldConfig } from "./EntityDrawerViewer";
 
-export type CollapsibleKey = "none" | "PRODUCT" | "SERVICE" | "advice";
+export type CollapsibleKey = "none" | "PRODUCT" | "SERVICE" | "BLOG";
 export type DatasetOption<T extends Record<string, any>> = {
   key: string;
   label: string;

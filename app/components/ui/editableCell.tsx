@@ -15,7 +15,7 @@ export function EditableCell({
 
   const accessorKey = cell.column.columnDef.accessorKey as string;
   const id = cell.row.original.id;
-
+  const noEdit = cell.column.columnDef.enableEditing === false;
   const handleBlur = () => {
     setIsEditing(false);
     if (value !== cell.getValue()) {
@@ -29,9 +29,16 @@ export function EditableCell({
     }
   };
 
+  if (noEdit) {
+    return (
+      <div className="w-full h-full p-2">
+        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+      </div>
+    );
+  }
+
   // Check if a dropdown is configured for this accessorKey
   const options = dropdownOptions?.[accessorKey];
-
   if (isEditing && options) {
     return (
       <select

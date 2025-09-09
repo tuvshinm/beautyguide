@@ -3,6 +3,7 @@ import { EntityDataTable } from "~/components/data-table";
 import { db } from "~/utils/db.server";
 import type { DatasetOption } from "~/components/types";
 import {
+  AffiliationLabels,
   categoryColumns,
   categoryGroupColumns,
   CategoryGroupWithCount,
@@ -12,13 +13,14 @@ import {
   categoryDrawerFields,
   categoryGroupDrawerFields,
 } from "~/components/drawers";
-import { Affiliation, Category, CategoryGroup } from "@prisma/client";
+import { Affiliation, Category } from "@prisma/client";
 export const loader = async () => {
   const categories = await db.category.findMany({
     include: {
       categoryGroup: {
         select: { id: true, name: true },
       },
+      _count: { select: { products: true } },
     },
   });
 
@@ -27,7 +29,6 @@ export const loader = async () => {
       _count: { select: { categories: true } },
     },
   });
-
   return { categories, categoryGroups };
 };
 
@@ -77,6 +78,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function ProductCategories() {
   const { categories, categoryGroups } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
+  const affilDropdownOptions = Object.values(Affiliation)
+    .filter((v) => typeof v === "number") // keep only 0,1,2
+    .map((value) => ({
+      value: value as Affiliation, // numeric enum value
+      label: AffiliationLabels[value as Affiliation], // human-readable
+    }));
   const categoryDataset: DatasetOption<Category> = {
     key: "category",
     label: "Category",
@@ -105,6 +112,14 @@ export default function ProductCategories() {
     onCreate: handleCreateCategoryGroup,
     onDelete: handleDelete,
     onUpdate: handleUpdate,
+    dropdownOptions: {
+      affil: Object.values(Affiliation)
+        .filter((v) => typeof v === "number")
+        .map((value) => ({
+          value: value as Affiliation,
+          label: AffiliationLabels[value as Affiliation],
+        })),
+    },
   };
   async function handleCreate(formData: FormData) {
     formData.append("method", "create");
