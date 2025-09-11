@@ -101,7 +101,7 @@ export const categoryColumns = (
   {
     accessorKey: "productsCount",
     header: "Products Count",
-    cell: ({ row }) => row.original._count?.categories ?? "—",
+    cell: ({ row }) => row.original._count?.categories ?? "-",
     enableEditing: false,
   },
 ];
@@ -125,11 +125,11 @@ export const categoryGroupColumns: ColumnDef<CategoryGroupWithCount>[] = [
     header: "ID",
   },
   {
-    accessorKey: "affil",
+    accessorKey: "Affiliation",
     header: "Affiliation",
     cell: ({ row }) => {
-      const affilValue: Affiliation = row.original.affil; // enum number
-      return AffiliationLabels[affilValue] ?? "N/A";
+      const affilValue = row.original.affil; // string from DB
+      return AffiliationLabels[affilValue as Affiliation] ?? "N/A";
     },
   },
   {

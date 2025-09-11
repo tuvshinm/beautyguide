@@ -58,19 +58,37 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       name: formData.get("name") as string,
       affil: formData.get("affil") as Affiliation,
     };
+    console.log(newCategoryGroup);
     const response = await db.categoryGroup.create({ data: newCategoryGroup });
     return response;
   }
   if (method === "update") {
     const updatedItems = JSON.parse(formData.get("updatedItems") as string);
-    // You would typically use a transaction for batch updates
     for (const item of updatedItems) {
-      await db.product.update({
+      await db.category.update({
         where: { id: item.id },
         data: item,
       });
     }
     return null;
+  } else if (method === "categoryGroupUpdate") {
+    const updatedItems = JSON.parse(formData.get("updatedItems") as string);
+    for (const item of updatedItems) {
+      await db.categoryGroup.update({
+        where: { id: item.id },
+        data: item,
+      });
+    }
+    return null;
+  } else if (method === "categoryGroupDelete") {
+    const ids = formData.getAll("ids") as string[];
+    if (ids.length > 0) {
+      await db.categoryGroup.deleteMany({
+        where: { id: { in: ids } },
+      });
+      return { success: true };
+    }
+    throw new Response("No IDs provided", { status: 400 });
   }
   throw new Response("Method Not Allowed", { status: 405 });
 };
@@ -78,12 +96,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function ProductCategories() {
   const { categories, categoryGroups } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
-  const affilDropdownOptions = Object.values(Affiliation)
-    .filter((v) => typeof v === "number") // keep only 0,1,2
-    .map((value) => ({
-      value: value as Affiliation, // numeric enum value
-      label: AffiliationLabels[value as Affiliation], // human-readable
-    }));
+
   const categoryDataset: DatasetOption<Category> = {
     key: "category",
     label: "Category",
@@ -110,15 +123,13 @@ export default function ProductCategories() {
     drawerFields: categoryGroupDrawerFields,
     buttonLabel: "New Category Group",
     onCreate: handleCreateCategoryGroup,
-    onDelete: handleDelete,
-    onUpdate: handleUpdate,
+    onDelete: handleCategoryGroupDelete,
+    onUpdate: handleCategoryGroupUpdate,
     dropdownOptions: {
-      affil: Object.values(Affiliation)
-        .filter((v) => typeof v === "number")
-        .map((value) => ({
-          value: value as Affiliation,
-          label: AffiliationLabels[value as Affiliation],
-        })),
+      Affiliation: Object.entries(AffiliationLabels).map(([value, label]) => ({
+        value,
+        label,
+      })),
     },
   };
   async function handleCreate(formData: FormData) {
@@ -147,6 +158,22 @@ export default function ProductCategories() {
     const formData = new FormData();
     formData.append("method", "update");
     formData.append("updatedItems", JSON.stringify(updatedItems));
+    console.log(formData);
+    fetcher.submit(formData, { method: "post" });
+  }
+  async function handleCategoryGroupUpdate(updatedItems: any[]) {
+    const formData = new FormData();
+    formData.append("method", "categoryGroupUpdate");
+    formData.append("updatedItems", JSON.stringify(updatedItems));
+    console.log(formData);
+    fetcher.submit(formData, { method: "post" });
+  }
+  async function handleCategoryGroupDelete(ids: string[]) {
+    const formData = new FormData();
+    ids.forEach((id) => {
+      formData.append("ids", id);
+    });
+    formData.append("method", "categoryGroupDelete");
     fetcher.submit(formData, { method: "post" });
   }
   return (
