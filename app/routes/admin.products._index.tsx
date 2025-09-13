@@ -52,14 +52,12 @@ export async function action({ request }: ActionFunctionArgs) {
 
   let imageUrl = "";
 
-  // The critical part: robustly check for a valid file
   if (
     imageFile &&
     imageFile.size > 0 &&
     typeof imageFile.arrayBuffer === "function"
   ) {
     try {
-      // Pass the file directly to the server-side function
       const result = await uploadToCloudinary(imageFile);
       imageUrl = result.secure_url;
     } catch (error) {
