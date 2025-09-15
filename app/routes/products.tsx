@@ -2,6 +2,7 @@ import type { MetaFunction } from "@remix-run/node";
 import { Outlet, useLoaderData } from "@remix-run/react";
 import { Header } from "~/components/ui/header";
 import { db } from "~/utils/db.server";
+import { handleFacebookLogin } from "~/lib/utils";
 export async function loader() {
   const categoryGroups = await db.categoryGroup.findMany({
     include: {
@@ -19,18 +20,6 @@ export const meta: MetaFunction = () => {
 
 export default function ProductIndex() {
   const { categoryGroups } = useLoaderData<typeof loader>();
-  const handleFacebookLogin = () => {
-    FB.login(
-      (response) => {
-        if (response.authResponse) {
-          console.log("Logged in!", response);
-        } else {
-          console.log("User cancelled login or did not fully authorize.");
-        }
-      },
-      { scope: "public_profile,email" }
-    );
-  };
   return (
     <>
       <Header

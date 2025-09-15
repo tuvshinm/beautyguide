@@ -14,10 +14,9 @@ export default function Advice() {
     <div>
       <ul>
         {blogPosts.map((blogPost) => (
-          <div key={blogPost.id}>
+          <a key={blogPost.id} href={`/advice/${blogPost.id}`}>
             <li key={blogPost.id} className="mb-4 text-2xl font-bold">
-              <a href={blogPost.title}>{blogPost.title}</a>
-              {blogPost?.photoUrl && (
+              {blogPost.photoUrl && (
                 <img
                   src={blogPost.photoUrl}
                   alt={blogPost.title}
@@ -26,7 +25,7 @@ export default function Advice() {
               )}
             </li>
             <p key={blogPost.id}>{blogPost.body}</p>
-          </div>
+          </a>
         ))}
       </ul>
     </div>
