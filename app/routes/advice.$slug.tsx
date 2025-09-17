@@ -14,7 +14,15 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
         orderBy: {
           createdAt: "desc",
         },
-        select: { id: true },
+        include: {
+          createdBy: {
+            select: {
+              name: true,
+              profilePicture: true,
+              id: true,
+            },
+          },
+        },
       },
     },
   });
@@ -37,6 +45,14 @@ export default function AdviceSlug() {
         />
       )}
       <p>{blog.body}</p>
+      <p>comments: {blog.comment.length}</p>
+      {blog.comment.map((comment) => (
+        <div key={comment.id}>
+          <h1>
+            {comment.createdBy.name}: {comment.body}
+          </h1>
+        </div>
+      ))}
     </main>
   );
 }

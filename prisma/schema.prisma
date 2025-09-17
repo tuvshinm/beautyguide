@@ -17,7 +17,8 @@ model User {
   lastLogin      DateTime  @updatedAt
   reviews        Review[]
   sessions       Session[]
-  Flags           Flag[]
+  Flags          Flag[]
+  Comment        Comment[]
 }
 
 model Session {
@@ -37,12 +38,12 @@ model Product {
   imageUrl    String?
   createdAt   DateTime @default(now())
 
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   categoryId String
 
   tags    ProductTag[]
   reviews Review[]
-  Flags    Flag[]
+  Flags   Flag[]
 
   @@index([name])
 }
@@ -58,7 +59,7 @@ model Service {
   categoryId String
 
   reviews Review[]
-  Flags    Flag[]
+  Flags   Flag[]
 
   @@index([name])
 }
@@ -115,14 +116,15 @@ model Review {
   service   Service? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   serviceId String?
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-  Flags     Flag[]
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  Flags  Flag[]
 
   @@index([productId])
   @@index([serviceId])
   @@index([userId])
 }
+
 model Flag {
   id        String   @id @default(uuid())
   reason    String?
@@ -139,10 +141,11 @@ model Flag {
 
   service   Service? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   serviceId String?
-  
+
   comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
   commentId String?
 }
+
 model Blog {
   id        String    @id @default(uuid())
   title     String
@@ -153,9 +156,12 @@ model Blog {
   updatedAt DateTime  @updatedAt
   comment   Comment[]
 }
+
 model Comment {
   id        String   @id @default(uuid())
   body      String
+  createdBy User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   blog      Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
