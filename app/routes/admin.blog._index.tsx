@@ -7,31 +7,24 @@ import { EntityDataTable } from "~/components/data-table";
 import { uploadToCloudinary } from "~/utils/cloudinary.server";
 import { db } from "~/utils/db.server";
 import { blogColumns } from "~/components/columns";
-
-// Loader
 export async function loader() {
   const blogs = await db.blog.findMany();
   return { blogs };
 }
-
-// Action
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const method = formData.get("_method");
-
   if (method === "delete") {
     const ids = formData.getAll("ids") as string[];
     if (!ids.length) throw new Response("No IDs provided", { status: 400 });
     await db.blog.deleteMany({ where: { id: { in: ids } } });
     return { success: true };
   }
-
   if (method === "draft" || method === "create") {
     const title = formData.get("title") as string;
     const body = formData.get("body") as string;
     const imageFile = formData.get("photoUrl") as File;
     const isDraft = method === "draft";
-
     let imageUrl = "";
     if (
       imageFile &&
@@ -46,29 +39,23 @@ export async function action({ request }: ActionFunctionArgs) {
         return new Response("Image upload failed.", { status: 500 });
       }
     }
-
     const newBlog = {
       title,
       body,
       draft: isDraft,
       ...(imageUrl && { photoUrl: imageUrl }),
     };
-
     const response = await db.blog.create({ data: newBlog });
     return new Response(JSON.stringify(response), {
       status: 201,
       headers: { "Content-Type": "application/json" },
     });
   }
-
   return new Response("Method not allowed", { status: 405 });
 }
-
-// Component
 export default function BlogIndex() {
   const { blogs } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
-
   async function handleCreate(formData: FormData) {
     formData.append("_method", "create");
     fetcher.submit(formData, {
@@ -76,7 +63,6 @@ export default function BlogIndex() {
       encType: "multipart/form-data",
     });
   }
-
   async function handleDraft(formData: FormData) {
     formData.append("_method", "draft");
     fetcher.submit(formData, {
@@ -84,14 +70,12 @@ export default function BlogIndex() {
       encType: "multipart/form-data",
     });
   }
-
   async function handleDelete(ids: string[]) {
     const formData = new FormData();
     ids.forEach((id) => formData.append("ids", id));
     formData.append("_method", "delete");
     fetcher.submit(formData, { method: "post" });
   }
-
   const blogDataset: DatasetOption<Blog> = {
     key: "blogs",
     label: "Blogs",
@@ -103,6 +87,5 @@ export default function BlogIndex() {
     onDelete: handleDelete,
     onDraft: handleDraft,
   };
-
   return <EntityDataTable datasets={[blogDataset]} />;
 }

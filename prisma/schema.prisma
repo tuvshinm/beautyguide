@@ -13,6 +13,7 @@ model User {
   email          String?   @unique
   name           String?
   profilePicture String?
+  admin          Boolean   @default(false)
   createdAt      DateTime  @default(now())
   lastLogin      DateTime  @updatedAt
   reviews        Review[]
@@ -29,6 +30,21 @@ model Session {
   expiresAt DateTime
 
   @@index([userId])
+}
+
+enum SessionStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+}
+
+model FacebookSession {
+  id                   String        @id @default(cuid())
+  facebook_usedId      String
+  facebook_accessToken String
+  createdAt            DateTime      @default(now())
+  expiresAt            DateTime
+  status               SessionStatus
 }
 
 model Product {
